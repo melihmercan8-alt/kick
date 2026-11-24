@@ -1,0 +1,3828 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Kick Lite" />
+  <meta name="theme-color" content="#000000" />
+  <title>Kick Lite iOS — Ultra Hafif Yayın Oynatıcı</title>
+
+  <!-- Inline SVG Data-URI App Icon -->
+  <link
+    rel="apple-touch-icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23000000'/%3E%3Crect x='10' y='10' width='160' height='160' rx='32' fill='%23111315' stroke='%2353fc18' stroke-width='6'/%3E%3Cpath d='M52 44h24v36l34-36h28l-38 42 40 50h-29l-35-44v44H52V44z' fill='%2353fc18'/%3E%3C/svg%3E"
+  />
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23000000'/%3E%3Cpath d='M18 14h10v14l13-14h11L37 31l16 19H42L28 33v17H18V14z' fill='%2353fc18'/%3E%3C/svg%3E"
+  />
+
+  <!-- Opsiyonel Asenkron HLS.js (Engellense bile iOS Native HLS & UI %100 çalışır) -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js" async></script>
+
+  <!-- %100 DAHİLİ NATIVE CSS (SIFIR HARİCİ CDN BAĞIMLILIĞI) -->
+  <style>
+    :root {
+      --bg-primary: #000000;
+      --bg-surface: #111315;
+      --bg-elevated: #1a1d21;
+      --border: #242830;
+      --text-main: #f4f4f6;
+      --text-muted: #8e95a2;
+      --kick: #53fc18;
+      --kick-dim: rgba(83, 252, 24, 0.14);
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.14);
+      --amber: #f59e0b;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+    }
+
+    body.theme-graphite {
+      --bg-primary: #0b0d10;
+      --bg-surface: #14171d;
+      --bg-elevated: #1d2129;
+      --border: #2a303b;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      background: var(--bg-primary);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.4;
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
+      overscroll-behavior: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button, input, select, pre, code {
+      font-family: inherit;
+    }
+
+    button {
+      border: 0;
+      background: none;
+      color: inherit;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .select-text {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .tap-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .ios-scroll {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .spinning {
+      animation: spin 0.85s linear infinite;
+    }
+
+    /* ==================== ANA İSKELET ==================== */
+    #app-shell {
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-primary);
+      padding-top: var(--safe-top);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ==================== 1. YAPIŞKAN 16:9 VİDEO OYNATICI ==================== */
+    #player-wrapper {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      max-height: 44dvh;
+      background: #000000;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Boş / Hızlı Başlat Ekranı */
+    #player-empty-view {
+      width: 100%;
+      height: 100%;
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px 14px;
+      overflow-y: auto;
+    }
+
+    .empty-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .brand-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .dot-kick {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--kick);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .txt-kick { color: var(--kick); }
+    .txt-muted { color: var(--text-muted); }
+
+    .btn-demo-pill {
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: var(--bg-elevated);
+      border: 1px solid rgba(83, 252, 24, 0.45);
+      color: var(--kick);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .empty-middle {
+      margin: auto 0;
+      padding: 6px 0;
+    }
+
+    .section-eyebrow {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin: 0 0 8px 0;
+    }
+
+    .quick-chips-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .quick-chip {
+      height: 38px;
+      padding: 0 11px;
+      border-radius: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .quick-chip:active {
+      border-color: var(--kick);
+      transform: scale(0.98);
+    }
+
+    .chip-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #4b5563;
+      flex-shrink: 0;
+    }
+    .chip-dot.live { background: var(--kick); }
+
+    .empty-footer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Embed & HLS Yuvaları */
+    #player-embed-mount,
+    #player-hls-mount {
+      width: 100%;
+      height: 100%;
+      background: #000000;
+      position: relative;
+    }
+
+    #player-embed-mount iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #000000;
+    }
+
+    #hls-video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000000;
+      display: block;
+    }
+
+    /* Teknik İstatistik Katmanı */
+    #hls-stats-overlay {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 20;
+      background: rgba(0, 0, 0, 0.86);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px;
+      color: #e5e7eb;
+      min-width: 185px;
+      pointer-events: none;
+    }
+
+    .stat-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--kick);
+      font-weight: 700;
+      padding-bottom: 4px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    /* HLS Fallback Katmanı */
+    #hls-fallback-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      background: rgba(0, 0, 0, 0.94);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      text-align: center;
+      overflow-y: auto;
+    }
+
+    .fb-card {
+      max-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .fb-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .fb-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.45;
+      margin: 0;
+    }
+
+    .fb-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    /* Video Üstü Dokunmatik Kontroller */
+    #hls-touch-controls {
+      position: absolute;
+      inset: auto 0 0 0;
+      z-index: 15;
+      background: linear-gradient(to top, rgba(0,0,0,0.92), rgba(0,0,0,0.45) 60%, transparent);
+      padding: 24px 10px 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      transition: opacity 0.16s ease;
+    }
+
+    #hls-touch-controls.controls-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .vid-icon-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: rgba(17, 19, 21, 0.85);
+      border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+    }
+
+    .vid-live-btn {
+      height: 36px;
+      padding: 0 10px;
+      border-radius: 10px;
+      background: rgba(17, 19, 21, 0.85);
+      border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .dot-red {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--danger);
+      display: inline-block;
+    }
+
+    /* Yatay Mod Yüzen Panel Butonu */
+    #landscape-drawer-fab {
+      display: none;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 30;
+      height: 38px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: rgba(17, 19, 21, 0.88);
+      border: 1px solid var(--border);
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    /* Yatay Mod Sağ Çekmece */
+    #landscape-side-drawer {
+      display: none;
+      flex-direction: column;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border);
+      flex-shrink: 0;
+      overflow: hidden;
+      z-index: 25;
+    }
+
+    .ls-drawer-head {
+      height: 44px;
+      padding: 0 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .seg-pill-sm {
+      display: inline-flex;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 2px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .seg-pill-sm button {
+      padding: 4px 9px;
+      border-radius: 7px;
+      color: var(--text-muted);
+    }
+
+    .seg-pill-sm button.active {
+      background: var(--bg-elevated);
+      color: var(--kick);
+    }
+
+    #ls-drawer-chat-pane,
+    #ls-drawer-channels-pane {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #ls-drawer-channels-pane {
+      overflow-y: auto;
+      padding: 8px;
+      gap: 6px;
+    }
+
+    #ls-drawer-chat-pane iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+    }
+
+    /* ==================== 2. HIZLI KONTROL ŞERİDİ ==================== */
+    #portrait-controls-bar {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 10px;
+      flex-shrink: 0;
+    }
+
+    #active-stream-mini-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 7px;
+      margin-bottom: 7px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mini-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    #mini-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--bg-elevated);
+      flex-shrink: 0;
+    }
+
+    .mini-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .mini-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #mini-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .live-badge-xs {
+      font-size: 9px;
+      font-weight: 800;
+      background: #dc2626;
+      color: #ffffff;
+      padding: 1px 5px;
+      border-radius: 4px;
+      letter-spacing: 0.03em;
+      flex-shrink: 0;
+    }
+
+    #mini-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #mini-viewers-box {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #ffffff;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+
+    .pills-scroller {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+    }
+
+    .engine-switch {
+      display: inline-flex;
+      align-items: center;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2px;
+      height: 44px;
+      flex-shrink: 0;
+    }
+
+    .engine-switch button {
+      height: 100%;
+      padding: 0 12px;
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .engine-switch button.active-embed {
+      background: var(--bg-elevated);
+      color: #ffffff;
+    }
+
+    .engine-switch button.active-hls {
+      background: var(--bg-elevated);
+      color: var(--kick);
+    }
+
+    .action-pill {
+      height: 44px;
+      padding: 0 12px;
+      border-radius: 12px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .action-pill:active {
+      opacity: 0.8;
+      transform: scale(0.98);
+    }
+
+    .action-pill.danger {
+      border-color: rgba(239, 68, 68, 0.45);
+      color: #f87171;
+    }
+
+    .action-pill.active-stat {
+      border-color: rgba(83, 252, 24, 0.55);
+      color: var(--kick);
+    }
+
+    .quality-tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .quality-tag.hls-on {
+      border-color: rgba(83, 252, 24, 0.5);
+      color: var(--kick);
+    }
+
+    /* ==================== 3. ORTA SEKME İÇERİKLERİ ==================== */
+    #portrait-main-area {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      position: relative;
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-pane {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    /* SEKME 1: KANALLAR */
+    .channels-toolbar {
+      padding: 10px 12px 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .search-box {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    #search-channel-input {
+      width: 100%;
+      height: 44px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0 12px 0 34px;
+      font-size: 14px;
+      color: #ffffff;
+      outline: none;
+    }
+
+    #search-channel-input:focus {
+      border-color: var(--kick);
+    }
+
+    .icon-sq-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .add-plus-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--kick);
+      color: #000000;
+      font-size: 22px;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .channels-meta-bar {
+      padding: 0 14px 6px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .api-pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .api-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+    .api-dot.ok { background: var(--kick); }
+    .api-dot.warn { background: var(--amber); }
+
+    .channels-scroll-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 12px 18px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .group-header {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0 4px 6px 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .group-items {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .channel-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      min-height: 56px;
+      border-radius: 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    .channel-row.is-active {
+      background: var(--bg-elevated);
+      border-color: rgba(83, 252, 24, 0.65);
+    }
+
+    .channel-row:active {
+      opacity: 0.85;
+    }
+
+    .avatar-wrap {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+    }
+
+    .avatar-img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--bg-primary);
+      display: block;
+    }
+
+    .avatar-img.live-ring {
+      box-shadow: 0 0 0 2px var(--kick);
+    }
+
+    .avatar-img.offline-dim {
+      opacity: 0.65;
+    }
+
+    .avatar-live-dot {
+      position: absolute;
+      right: -1px;
+      bottom: -1px;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: var(--kick);
+      border: 2px solid #000000;
+    }
+
+    .channel-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .channel-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .channel-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .channel-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .viewer-count {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--kick);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .del-ch-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* SEKME 2: SOHBET */
+    #chat-active-header {
+      padding: 8px 12px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .chat-head-btns {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-xs-surface {
+      padding: 6px 10px;
+      border-radius: 9px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .btn-xs-danger {
+      padding: 6px 10px;
+      border-radius: 9px;
+      background: var(--danger-bg);
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      font-size: 11px;
+      font-weight: 600;
+      color: #fca5a5;
+    }
+
+    #chat-off-placeholder {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      text-align: center;
+      overflow-y: auto;
+    }
+
+    .chat-card {
+      width: 100%;
+      max-width: 360px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .chat-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--kick);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+    }
+
+    #chat-iframe-container {
+      flex: 1;
+      min-height: 0;
+      background: var(--bg-primary);
+    }
+
+    #chat-iframe-container iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+    }
+
+    /* SEKME 3: PANEL & AYARLAR */
+    #tab-view-settings {
+      overflow-y: auto;
+      padding: 12px 12px 24px 12px;
+      gap: 12px;
+    }
+
+    .card-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .tip-banner {
+      background: rgba(83, 252, 24, 0.08);
+      border: 1px solid rgba(83, 252, 24, 0.4);
+      border-radius: 16px;
+      padding: 12px 14px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .tip-badge {
+      background: var(--kick);
+      color: #000000;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 7px;
+      border-radius: 7px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .card-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .pill-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--kick);
+      white-space: nowrap;
+    }
+
+    .inline-form {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .text-input {
+      flex: 1;
+      min-width: 0;
+      height: 44px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0 12px;
+      font-size: 12px;
+      color: #ffffff;
+      outline: none;
+    }
+
+    .text-input:focus {
+      border-color: var(--kick);
+    }
+
+    .btn-primary {
+      height: 44px;
+      padding: 0 16px;
+      border-radius: 12px;
+      background: var(--kick);
+      color: #000000;
+      font-size: 12px;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .btn-secondary {
+      height: 44px;
+      padding: 0 14px;
+      border-radius: 12px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .btn-secondary.kick-outline {
+      border-color: rgba(83, 252, 24, 0.45);
+      color: var(--kick);
+      font-weight: 700;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .setting-row.bordered {
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .setting-select {
+      height: 40px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #ffffff;
+      outline: none;
+    }
+
+    .switch-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+    }
+
+    .switch-box input[type="checkbox"],
+    .setting-row input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: #53fc18;
+      flex-shrink: 0;
+    }
+
+    #worker-code-box {
+      margin: 0;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px;
+      line-height: 1.45;
+      color: #d1d5db;
+      overflow-x: auto;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .step-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .step-num {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--kick-dim);
+      border: 1px solid rgba(83, 252, 24, 0.4);
+      color: var(--kick);
+      font-weight: 800;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ==================== 4. ALT iOS SEKME ÇUBUĞU ==================== */
+    #bottom-tab-bar {
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      padding-bottom: var(--safe-bottom);
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .tab-bar-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      height: 54px;
+    }
+
+    .nav-tab-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .nav-tab-btn.active {
+      color: var(--kick);
+      font-weight: 700;
+    }
+
+    .nav-icon-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #nav-chat-active-dot {
+      position: absolute;
+      top: -2px;
+      right: -4px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--kick);
+    }
+
+    /* ==================== BOTTOM SHEET & MODALLAR ==================== */
+    .sheet-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(0, 0, 0, 0.76);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .sheet-panel {
+      width: 100%;
+      max-width: 520px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      border-radius: 22px 22px 0 0;
+      padding-bottom: var(--safe-bottom);
+      max-height: 82dvh;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(100%);
+      transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .sheet-overlay.sheet-open .sheet-panel {
+      transform: translateY(0);
+    }
+
+    .sheet-handle {
+      width: 38px;
+      height: 4px;
+      border-radius: 999px;
+      background: #374151;
+      margin: 10px auto 6px auto;
+      flex-shrink: 0;
+    }
+
+    .sheet-header {
+      padding: 4px 16px 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .sheet-close-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      font-size: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sheet-body {
+      padding: 14px 16px 18px 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .quality-opt-btn {
+      width: 100%;
+      min-height: 46px;
+      padding: 0 14px;
+      border-radius: 12px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .quality-opt-btn.selected {
+      background: var(--bg-elevated);
+      border-color: var(--kick);
+      color: var(--kick);
+      font-weight: 700;
+    }
+
+    .sheet-buf-btn {
+      min-height: 44px;
+      border-radius: 12px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .sheet-buf-btn.active {
+      background: var(--bg-elevated);
+      border-color: var(--kick);
+      color: var(--kick);
+    }
+
+    /* Onay Modalı & Toast */
+    #confirm-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .confirm-box {
+      width: 100%;
+      max-width: 320px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    #toast-box {
+      position: fixed;
+      top: calc(12px + var(--safe-top));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 70;
+      background: var(--bg-elevated);
+      border: 1px solid var(--kick);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 9px 16px;
+      border-radius: 999px;
+      white-space: nowrap;
+      max-width: 92vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      pointer-events: none;
+    }
+
+    #toast-box.toast-err {
+      border-color: var(--danger);
+    }
+
+    /* ==================== YATAY MOD (LANDSCAPE iPhone) ==================== */
+    @media (orientation: landscape) and (max-height: 520px) {
+      #app-shell {
+        flex-direction: row;
+        padding-top: 0;
+        padding-left: var(--safe-left);
+        padding-right: var(--safe-right);
+      }
+
+      #bottom-tab-bar,
+      #portrait-controls-bar,
+      #portrait-main-area {
+        display: none !important;
+      }
+
+      #player-wrapper {
+        flex: 1 1 auto;
+        width: 100%;
+        height: 100dvh;
+        max-height: 100dvh;
+        aspect-ratio: auto;
+        border-bottom: 0;
+      }
+
+      #landscape-drawer-fab {
+        display: inline-flex;
+      }
+
+      #landscape-side-drawer.drawer-open {
+        display: flex;
+        width: min(320px, 44vw);
+        height: 100dvh;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ==================== ANA UYGULAMA İSKELETİ ==================== -->
+  <div id="app-shell">
+
+    <!-- ==================== 1. SABİT 16:9 VİDEO OYNATICI ==================== -->
+    <section id="player-wrapper">
+
+      <!-- A) BOŞ / HIZLI BAŞLAT EKRANI -->
+      <div id="player-empty-view">
+        <div class="empty-top-row">
+          <div class="brand-badge">
+            <span class="dot-kick"></span>
+            <span>KICK <span class="txt-kick">LITE</span> <span class="txt-muted" style="font-size:10px;font-weight:600;">iOS</span></span>
+          </div>
+          <button id="empty-demo-hls-btn" type="button" class="btn-demo-pill">Demo HLS Test ▶</button>
+        </div>
+
+        <div class="empty-middle">
+          <p id="empty-recent-label" class="section-eyebrow">Hızlı Başlat</p>
+          <div id="empty-quick-chips" class="quick-chips-wrap"></div>
+        </div>
+
+        <div class="empty-footer-row">
+          <span>Sohbet kapalı · Pil &amp; RAM korumalı</span>
+          <button id="empty-open-add-btn" type="button" class="txt-kick" style="font-weight:700;">+ Kanal Ekle</button>
+        </div>
+      </div>
+
+      <!-- B) EMBED OYNATICI YUVASI (Varsayılan) -->
+      <div id="player-embed-mount" class="hidden"></div>
+
+      <!-- C) iOS HLS OYNATICI YUVASI -->
+      <div id="player-hls-mount" class="hidden">
+        <video
+          id="hls-video"
+          playsinline
+          webkit-playsinline
+          x-webkit-airplay="allow"
+          controlslist="nodownload"
+          preload="auto"
+        ></video>
+
+        <!-- Canlı Teknik İstatistikler -->
+        <div id="hls-stats-overlay" class="hidden">
+          <div class="stat-head">
+            <span id="stat-engine">HLS</span>
+            <span id="stat-profile">Dengeli</span>
+          </div>
+          <div class="stat-row"><span class="txt-muted">Çözünürlük:</span><span id="stat-res">-</span></div>
+          <div class="stat-row"><span class="txt-muted">Bitrate:</span><span id="stat-bitrate">-</span></div>
+          <div class="stat-row"><span class="txt-muted">Tampon:</span><span id="stat-buffer">0.0 sn</span></div>
+          <div class="stat-row"><span class="txt-muted">Düşen Kare:</span><span id="stat-dropped">0</span></div>
+        </div>
+
+        <!-- HLS Akışı Bulunamadı Katmanı -->
+        <div id="hls-fallback-overlay" class="hidden">
+          <div class="fb-card">
+            <div id="hls-fallback-title" class="fb-title">HLS (.m3u8) Akışı Bulunamadı</div>
+            <p id="hls-fallback-desc" class="fb-desc">
+              Canlı Kick .m3u8 akışını otomatik çekmek için Ayarlar'dan Cloudflare Worker ekle, manuel .m3u8 gir veya Demo HLS'yi test et.
+            </p>
+            <div class="fb-actions">
+              <button id="hls-fb-demo-btn" type="button" class="btn-primary" style="height:36px;padding:0 12px;">Demo HLS Testi</button>
+              <button id="hls-fb-embed-btn" type="button" class="btn-secondary" style="height:36px;padding:0 12px;">Embed'e Dön</button>
+              <button id="hls-fb-settings-btn" type="button" class="btn-secondary" style="height:36px;padding:0 12px;">.m3u8 / Worker</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dokunmatik Video Üstü Kontroller -->
+        <div id="hls-touch-controls">
+          <div class="ctrl-group">
+            <button id="hls-play-btn" type="button" aria-label="Oynat veya Duraklat" class="vid-icon-btn">
+              <svg id="icon-hls-play" width="16" height="16" class="hidden" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+              <svg id="icon-hls-pause" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+            </button>
+
+            <button id="hls-mute-btn" type="button" aria-label="Sesi Aç veya Kapat" class="vid-icon-btn">
+              <svg id="icon-hls-vol" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+              <svg id="icon-hls-muted" width="16" height="16" class="hidden" style="color:#ef4444;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+            </button>
+
+            <button id="hls-live-btn" type="button" class="vid-live-btn">
+              <span class="dot-red"></span>
+              <span>CANLI</span>
+            </button>
+          </div>
+
+          <div class="ctrl-group">
+            <button id="hls-airplay-btn" type="button" aria-label="AirPlay" class="vid-icon-btn hidden">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"></path><polygon points="12 15 17 21 7 21 12 15"></polygon></svg>
+            </button>
+
+            <button id="hls-fs-btn" type="button" aria-label="Tam Ekran" class="vid-icon-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- YATAY MOD SAĞ YÜZEN BUTON -->
+      <button id="landscape-drawer-fab" type="button" title="Sohbet / Kanallar">
+        <span class="dot-kick" style="width:7px;height:7px;"></span>
+        <span id="landscape-fab-label">Panel</span>
+      </button>
+    </section>
+
+    <!-- YATAY MOD SAĞ ÇEKMECE -->
+    <aside id="landscape-side-drawer">
+      <div class="ls-drawer-head">
+        <div class="seg-pill-sm">
+          <button id="ls-tab-chat" type="button" class="active">Sohbet</button>
+          <button id="ls-tab-channels" type="button">Kanallar</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <button id="ls-quality-btn" type="button" class="btn-xs-surface txt-kick">Kalite</button>
+          <button id="ls-close-drawer-btn" type="button" class="btn-xs-surface" style="padding:4px 9px;">×</button>
+        </div>
+      </div>
+      <div id="ls-drawer-chat-pane"></div>
+      <div id="ls-drawer-channels-pane" class="hidden ios-scroll"></div>
+    </aside>
+
+    <!-- ==================== 2. HIZLI KONTROL ŞERİDİ ==================== -->
+    <div id="portrait-controls-bar">
+      <!-- Aktif Kanal Mini Başlık -->
+      <div id="active-stream-mini-header" class="hidden">
+        <div class="mini-left">
+          <img id="mini-avatar" src="" alt="" />
+          <div class="mini-info">
+            <div class="mini-name-row">
+              <span id="mini-name">Kanal</span>
+              <span id="mini-live-pill" class="live-badge-xs hidden">CANLI</span>
+            </div>
+            <p id="mini-title"></p>
+          </div>
+        </div>
+        <div id="mini-viewers-box" class="hidden">
+          <span class="dot-red"></span>
+          <span id="mini-viewers-text">0</span>
+        </div>
+      </div>
+
+      <!-- Yatay Kaydırılabilir Kontrol Hapları -->
+      <div class="pills-scroller no-scrollbar">
+        <div class="engine-switch">
+          <button id="btn-engine-embed" type="button" class="active-embed">Embed</button>
+          <button id="btn-engine-hls" type="button">HLS</button>
+        </div>
+
+        <button id="btn-quality-sheet" type="button" class="action-pill">
+          <svg width="14" height="14" class="txt-kick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line></svg>
+          <span>Kalite</span>
+          <span id="quality-btn-badge" class="quality-tag">Embed</span>
+        </button>
+
+        <button id="btn-pip" type="button" class="action-pill">
+          <svg width="14" height="14" class="txt-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"></rect><rect x="12" y="10" width="8" height="5" rx="1"></rect></svg>
+          <span>PiP</span>
+        </button>
+
+        <button id="btn-reload" type="button" class="action-pill">
+          <svg width="14" height="14" class="txt-kick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+          <span>Yenile</span>
+        </button>
+
+        <button id="btn-stats" type="button" class="action-pill txt-muted">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          <span>İstatistik</span>
+        </button>
+
+        <a id="btn-open-kick" href="https://kick.com" target="_blank" rel="noopener noreferrer" class="action-pill">
+          <svg width="14" height="14" class="txt-kick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          <span>Kick'te Aç</span>
+        </a>
+
+        <button id="btn-close-stream" type="button" class="action-pill danger">
+          <span>×</span>
+          <span>Kapat</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 3. ORTA İÇERİK ALANI ==================== -->
+    <main id="portrait-main-area">
+
+      <!-- SEKME 1: KANALLAR -->
+      <section id="tab-view-channels" class="tab-pane">
+        <div class="channels-toolbar">
+          <div class="search-box">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input
+              id="search-channel-input"
+              type="search"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              placeholder="Kanal ara..."
+              class="select-text"
+            />
+          </div>
+          <button id="btn-refresh-channels" type="button" aria-label="Yenile" class="icon-sq-btn">
+            <svg id="refresh-spin-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+          </button>
+          <button id="btn-open-add-sheet" type="button" aria-label="Kanal ekle" class="add-plus-btn">+</button>
+        </div>
+
+        <div class="channels-meta-bar">
+          <div>
+            <span id="channels-live-badge" class="txt-kick" style="font-weight:700;">0 canlı</span>
+            <span> · </span>
+            <span id="channels-total-badge">0 kanal</span>
+          </div>
+          <button id="channels-api-status-pill" type="button" class="api-pill-btn">
+            <span id="api-dot" class="api-dot"></span>
+            <span id="api-label">Kontrol ediliyor</span>
+          </button>
+        </div>
+
+        <div class="channels-scroll-list ios-scroll">
+          <div id="section-live">
+            <div class="group-header txt-kick">
+              <span>CANLI</span>
+              <span id="live-subcount"></span>
+            </div>
+            <div id="list-live" class="group-items"></div>
+          </div>
+
+          <div id="section-offline">
+            <div class="group-header txt-muted">
+              <span>ÇEVRİM DIŞI</span>
+              <span id="offline-subcount"></span>
+            </div>
+            <div id="list-offline" class="group-items"></div>
+          </div>
+
+          <div id="search-empty-box" class="hidden card-box" style="text-align:center;align-items:center;">
+            <p class="txt-muted" style="font-size:12px;margin:0;">Listede eşleşen kanal bulunamadı.</p>
+            <button id="btn-search-quick-add" type="button" class="btn-primary">+ Yeni kanal olarak ekle ve izle</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SEKME 2: SOHBET (Varsayılan KAPALI / 0 RAM) -->
+      <section id="tab-view-chat" class="tab-pane hidden">
+        <div id="chat-active-header" class="hidden">
+          <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+            <span class="dot-kick" style="width:8px;height:8px;"></span>
+            <span style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              Sohbet · <span id="chat-channel-label" class="txt-muted"></span>
+            </span>
+          </div>
+          <div class="chat-head-btns">
+            <button id="btn-chat-popout" type="button" class="btn-xs-surface">Yeni Sekme ↗</button>
+            <button id="btn-chat-disable" type="button" class="btn-xs-danger">Sohbeti Kapat</button>
+          </div>
+        </div>
+
+        <div id="chat-off-placeholder">
+          <div class="chat-card">
+            <div class="chat-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:#fff;">Sohbet Kapalı (Pil &amp; RAM Tasarrufu)</div>
+              <p class="txt-muted" style="font-size:12px;margin:6px 0 0 0;">
+                iPhone'da ısınma ve donmayı önlemek için sohbet arka planda yüklenmez. İstediğin zaman tek dokunuşla açabilirsin.
+              </p>
+            </div>
+            <button id="btn-chat-enable" type="button" class="btn-primary" style="width:100%;">Sohbeti Aç</button>
+            <button id="btn-chat-external" type="button" class="btn-secondary" style="width:100%;">Kick Sohbeti Ayrı Sekmede Aç ↗</button>
+          </div>
+        </div>
+
+        <div id="chat-iframe-container" class="hidden"></div>
+      </section>
+
+      <!-- SEKME 3: PANEL & AYARLAR -->
+      <section id="tab-view-settings" class="tab-pane hidden ios-scroll">
+
+        <!-- Dosyalar Uygulaması / Safari Bilgi Uyarısı -->
+        <div class="tip-banner">
+          <span class="tip-badge">İPUCU</span>
+          <div style="font-size:11px;line-height:1.45;color:#e5e7eb;">
+            <strong>Tam Ekran, Çerezler ve "Ana Ekrana Ekle" İçin:</strong> Dosyalar (Files) uygulaması önizlemesi yerine bu dosyayı ücretsiz bir HTTPS linkine (örn. <strong>GitHub Pages</strong>, <strong>Netlify Drop</strong> veya kendi hostingine) yükleyip doğrudan <strong>Safari</strong>'den açın.
+          </div>
+        </div>
+
+        <!-- 1. Doğrudan HLS (.m3u8) & Demo Test -->
+        <div class="card-box">
+          <div class="card-title-row">
+            <h2 class="card-title"><span class="dot-kick" style="width:8px;height:8px;"></span> Doğrudan HLS (.m3u8) Oynat</h2>
+            <span id="ios-hls-cap-badge" class="pill-badge">Kontrol...</span>
+          </div>
+          <form id="manual-m3u8-form" class="inline-form">
+            <input
+              id="manual-m3u8-input"
+              type="url"
+              placeholder="https://.../master.m3u8 linki yapıştır..."
+              class="text-input select-text"
+            />
+            <button type="submit" class="btn-primary">Oynat</button>
+          </form>
+          <button id="settings-demo-hls-btn" type="button" class="btn-secondary kick-outline" style="width:100%;">
+            Demo HLS Test Yayını (Çoklu Kaliteyi Dene) ▶
+          </button>
+        </div>
+
+        <!-- 2. Oynatıcı & OLED Ayarları -->
+        <div class="card-box">
+          <h2 class="card-title">Oynatıcı &amp; Görünüm Ayarları</h2>
+
+          <div class="setting-row">
+            <div>
+              <div style="font-size:12px;font-weight:700;">Varsayılan Maks. Kalite (HLS)</div>
+              <div class="txt-muted" style="font-size:11px;">Düşük internette donmayı önler</div>
+            </div>
+            <select id="setting-max-quality" class="setting-select">
+              <option value="auto">Otomatik</option>
+              <option value="1080">1080p</option>
+              <option value="720">720p</option>
+              <option value="480">480p (Önerilen)</option>
+              <option value="360">360p (En Hafif)</option>
+            </select>
+          </div>
+
+          <div class="setting-row bordered">
+            <div>
+              <div style="font-size:12px;font-weight:700;">Tampon / Donma Önleyici</div>
+              <div class="txt-muted" style="font-size:11px;">HLS.js tamponlama süresi</div>
+            </div>
+            <select id="setting-buffer-profile" class="setting-select">
+              <option value="lowLatency">Düşük Gecikme</option>
+              <option value="balanced">Dengeli (15sn)</option>
+              <option value="antiFreeze">Donma Önle (45sn)</option>
+            </select>
+          </div>
+
+          <label class="setting-row bordered" style="cursor:pointer;">
+            <div>
+              <div style="font-size:12px;font-weight:700;">OLED Saf Siyah (#000000)</div>
+              <div class="txt-muted" style="font-size:11px;">iPhone OLED ekranlarda pil tasarrufu</div>
+            </div>
+            <input id="setting-oled-toggle" type="checkbox" />
+          </label>
+        </div>
+
+        <!-- 3. Cloudflare Worker (Canlı Bilgi & .m3u8) -->
+        <div class="card-box">
+          <div class="card-title-row">
+            <h2 class="card-title">Cloudflare Worker (Canlı Bilgi &amp; .m3u8)</h2>
+            <span id="settings-proxy-status" class="pill-badge txt-muted">Doğrudan</span>
+          </div>
+          <p class="txt-muted" style="font-size:11px;margin:0;">
+            Embed modu her zaman çalışır. Kendi ücretsiz Cloudflare Worker'ını eklersen canlı izleyici sayıları ve <strong>HLS .m3u8 akışları (kalite seçimi için)</strong> otomatik çekilir.
+          </p>
+
+          <label class="switch-box">
+            <span style="font-size:12px;font-weight:600;">Genel CORS Proxy Yedeğini Kullan</span>
+            <input id="setting-public-proxy" type="checkbox" />
+          </label>
+
+          <div class="inline-form">
+            <input
+              id="setting-worker-url"
+              type="url"
+              placeholder="https://kick-proxy.adin.workers.dev/?url="
+              class="text-input select-text"
+            />
+            <button id="btn-save-worker" type="button" class="btn-secondary kick-outline">Kaydet</button>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span class="txt-muted" style="font-size:11px;font-weight:600;">CORS + M3U8 Worker Kodu (15 satır):</span>
+            <button id="btn-copy-worker" type="button" class="btn-xs-surface txt-kick">Kodu Kopyala</button>
+          </div>
+          <pre id="worker-code-box" class="select-text">export default {
+  async fetch(req) {
+    const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,OPTIONS" };
+    if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+    const target = new URL(req.url).searchParams.get("url");
+    if (!target || !/^https:\/\/([a-z0-9-]+\.)?(kick\.com|live-video\.net)\//i.test(target)) {
+      return new Response("Geçersiz URL", { status: 400, headers: cors });
+    }
+    const r = await fetch(target, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const ct = r.headers.get("Content-Type") || "application/octet-stream";
+    return new Response(r.body, {
+      status: r.status,
+      headers: { ...cors, "Content-Type": ct }
+    });
+  }
+};</pre>
+        </div>
+
+        <!-- 4. Kanal Listesi Yedekleme -->
+        <div class="card-box">
+          <h2 class="card-title">Kanal Listesi Yedeği</h2>
+          <div class="grid-3">
+            <button id="btn-export-json" type="button" class="btn-secondary">JSON Dışa</button>
+            <button id="btn-import-json" type="button" class="btn-secondary">JSON İçe</button>
+            <input id="input-import-file" type="file" accept="application/json,.json" class="hidden" />
+            <button id="btn-reset-channels" type="button" class="btn-secondary" style="border-color:rgba(239,68,68,0.45);color:#f87171;">Sıfırla</button>
+          </div>
+        </div>
+
+        <!-- 5. iPhone Ana Ekrana Ekle Rehberi -->
+        <div class="card-box">
+          <h2 class="card-title"><span class="tip-badge">iOS</span> iPhone Ana Ekrana Ekle</h2>
+          <div class="steps-grid">
+            <div class="step-card">
+              <div class="step-num">1</div>
+              <div>
+                <div style="font-size:12px;font-weight:700;">Safari'de Paylaş'a Dokun</div>
+                <div class="txt-muted" style="font-size:11px;">Alt çubuktaki yukarı oklu kare simgesine bas.</div>
+              </div>
+            </div>
+            <div class="step-card">
+              <div class="step-num">2</div>
+              <div>
+                <div style="font-size:12px;font-weight:700;">"Ana Ekrana Ekle"yi Seç</div>
+                <div class="txt-muted" style="font-size:11px;">Menüyü aşağı kaydırıp Ana Ekrana Ekle'ye dokun.</div>
+              </div>
+            </div>
+            <div class="step-card">
+              <div class="step-num">3</div>
+              <div>
+                <div style="font-size:12px;font-weight:700;">Sağ Üstten "Ekle"ye Bas</div>
+                <div class="txt-muted" style="font-size:11px;">Kick Lite simgesi ana ekranına eklenir ve tam ekran açılır.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ==================== 4. ALT iOS SEKME ÇUBUĞU ==================== -->
+    <nav id="bottom-tab-bar" aria-label="Alt Sekmeler">
+      <div class="tab-bar-grid">
+        <button id="nav-tab-channels" type="button" class="nav-tab-btn active">
+          <div class="nav-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+          </div>
+          <span>Kanallar</span>
+        </button>
+
+        <button id="nav-tab-chat" type="button" class="nav-tab-btn">
+          <div class="nav-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span id="nav-chat-active-dot" class="hidden"></span>
+          </div>
+          <span>Sohbet</span>
+        </button>
+
+        <button id="nav-tab-settings" type="button" class="nav-tab-btn">
+          <div class="nav-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </div>
+          <span>Panel &amp; Ayarlar</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ==================== BOTTOM SHEET 1: KALİTE & TAMPON ==================== -->
+  <div id="quality-sheet-overlay" class="sheet-overlay hidden">
+    <div class="sheet-panel">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#fff;">Yayın Kalitesi &amp; Tampon</div>
+          <div id="sheet-quality-subtitle" class="txt-muted" style="font-size:11px;">Oynatıcı modu</div>
+        </div>
+        <button id="btn-close-quality-sheet" type="button" class="sheet-close-btn">×</button>
+      </div>
+
+      <div class="sheet-body ios-scroll">
+        <!-- EMBED MODU -->
+        <div id="sheet-embed-mode" style="display:flex;flex-direction:column;gap:10px;">
+          <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;padding:12px;font-size:12px;color:var(--text-muted);line-height:1.45;">
+            Kick'in gömülü (Embed) oynatıcısında iOS Safari güvenliği nedeniyle dışarıdan kalite değiştirilemez. Video içindeki dişli simgesini kullanabilir veya tam kalite kontrolü için <strong class="txt-kick">HLS Modu</strong>'na geçebilirsin.
+          </div>
+          <button id="sheet-switch-to-hls" type="button" class="btn-primary" style="width:100%;">
+            HLS Moduna Geç (Gerçek Kalite Seçimi)
+          </button>
+          <button id="sheet-embed-demo-btn" type="button" class="btn-secondary kick-outline" style="width:100%;">
+            Demo HLS Test Yayını (Çoklu Kalite) ▶
+          </button>
+        </div>
+
+        <!-- HLS MODU -->
+        <div id="sheet-hls-mode" class="hidden" style="display:flex;flex-direction:column;gap:12px;">
+          <div id="sheet-native-notice" class="hidden" style="background:var(--bg-primary);border:1px solid var(--border);border-radius:10px;padding:9px 11px;font-size:11px;color:var(--text-muted);"></div>
+
+          <div>
+            <p class="section-eyebrow">Çözünürlük Seç</p>
+            <div id="sheet-quality-list" style="display:flex;flex-direction:column;gap:7px;"></div>
+          </div>
+
+          <div style="padding-top:10px;border-top:1px solid var(--border);">
+            <p class="section-eyebrow">Tampon / Donma Önleyici Profil</p>
+            <div class="grid-3">
+              <button type="button" data-buf="lowLatency" class="sheet-buf-btn">Düşük Gecikme</button>
+              <button type="button" data-buf="balanced" class="sheet-buf-btn">Dengeli</button>
+              <button type="button" data-buf="antiFreeze" class="sheet-buf-btn">Donma Önle</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== BOTTOM SHEET 2: HIZLI KANAL EKLE ==================== -->
+  <div id="add-sheet-overlay" class="sheet-overlay hidden">
+    <div class="sheet-panel">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div style="font-size:14px;font-weight:700;color:#fff;">Kanal Ekle ve İzle</div>
+        <button id="btn-close-add-sheet" type="button" class="sheet-close-btn">×</button>
+      </div>
+      <form id="add-channel-sheet-form" class="sheet-body">
+        <input
+          id="add-channel-sheet-input"
+          type="text"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="Örn: eray veya https://kick.com/zehragn"
+          class="text-input select-text"
+          style="width:100%;height:46px;font-size:14px;"
+        />
+        <button type="submit" class="btn-primary" style="width:100%;height:46px;font-size:13px;">
+          Listeye Ekle ve Aç
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== ONAY MODALI ==================== -->
+  <div id="confirm-modal" class="hidden">
+    <div class="confirm-box">
+      <div id="confirm-title" style="font-size:14px;font-weight:700;color:#fff;">Onayla</div>
+      <p id="confirm-msg" class="txt-muted" style="font-size:12px;margin:0;"></p>
+      <div class="grid-2">
+        <button id="confirm-cancel" type="button" class="btn-secondary">Vazgeç</button>
+        <button id="confirm-ok" type="button" class="btn-primary" style="background:#dc2626;color:#fff;">Onayla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== BİLDİRİM TOAST ==================== -->
+  <div id="toast-box" class="hidden">Bildirim</div>
+
+  <!-- ==================== UYGULAMA MANTIĞI ==================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      const STORAGE_CHANNELS = 'kick_lite_ios_channels_v2';
+      const STORAGE_SETTINGS = 'kick_lite_ios_settings_v2';
+      const STORAGE_RECENTS = 'kick_lite_ios_recents_v2';
+
+      const DEMO_HLS_URL = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+
+      const DEFAULT_CHANNELS = [
+        'eray',
+        'jahrein',
+        'rraenee',
+        'baran',
+        'zehragn',
+        'falconn2k',
+        'elraenn',
+        'wtcn',
+      ];
+
+      const DEFAULT_SETTINGS = {
+        preferredQuality: 'auto',
+        bufferProfile: 'balanced',
+        oledBlack: true,
+        usePublicProxy: true,
+        customWorkerUrl: '',
+      };
+
+      const BUFFER_PROFILES = {
+        lowLatency: {
+          label: 'Düşük Gecikme',
+          lowLatencyMode: true,
+          maxBufferLength: 6,
+          maxMaxBufferLength: 14,
+          liveSyncDurationCount: 2,
+          liveMaxLatencyDurationCount: 5,
+        },
+        balanced: {
+          label: 'Dengeli (15s)',
+          lowLatencyMode: false,
+          maxBufferLength: 15,
+          maxMaxBufferLength: 30,
+          liveSyncDurationCount: 3,
+          liveMaxLatencyDurationCount: 8,
+        },
+        antiFreeze: {
+          label: 'Donma Önle (45s)',
+          lowLatencyMode: false,
+          maxBufferLength: 45,
+          maxMaxBufferLength: 90,
+          liveSyncDurationCount: 5,
+          liveMaxLatencyDurationCount: 14,
+        },
+      };
+
+      const PUBLIC_PROXIES = [
+        (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+        (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+      ];
+
+      const state = {
+        activeTab: 'channels',
+        channels: [],
+        recents: [],
+        meta: {},
+        activeSlug: '',
+        searchQuery: '',
+        chatEnabled: false,
+        settings: { ...DEFAULT_SETTINGS },
+        apiStatus: 'checking',
+        isRefreshing: false,
+
+        // Varsayılan motor: 'embed' (tıklayınca anında Kick yayını başlar)
+        engine: 'embed',
+        hlsSubEngine: '',
+        hlsInstance: null,
+        hlsMasterUrl: '',
+        hlsActiveUrl: '',
+        hlsIsDemo: false,
+        hlsLevels: [],
+        hlsManualLevel: -1,
+        hlsCurrentLevel: -1,
+        hlsNativeCorsBlocked: false,
+        statsVisible: false,
+        statsTimer: null,
+        controlsVisible: true,
+        controlsHideTimer: null,
+
+        landscapeDrawerOpen: false,
+        landscapeDrawerTab: 'chat',
+
+        toastTimer: null,
+        confirmCb: null,
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const els = {
+        playerEmptyView: $('player-empty-view'),
+        emptyDemoHlsBtn: $('empty-demo-hls-btn'),
+        emptyRecentLabel: $('empty-recent-label'),
+        emptyQuickChips: $('empty-quick-chips'),
+        emptyOpenAddBtn: $('empty-open-add-btn'),
+
+        playerEmbedMount: $('player-embed-mount'),
+        playerHlsMount: $('player-hls-mount'),
+        hlsVideo: $('hls-video'),
+        hlsStatsOverlay: $('hls-stats-overlay'),
+        statEngine: $('stat-engine'),
+        statProfile: $('stat-profile'),
+        statRes: $('stat-res'),
+        statBitrate: $('stat-bitrate'),
+        statBuffer: $('stat-buffer'),
+        statDropped: $('stat-dropped'),
+        hlsFallbackOverlay: $('hls-fallback-overlay'),
+        hlsFallbackTitle: $('hls-fallback-title'),
+        hlsFallbackDesc: $('hls-fallback-desc'),
+        hlsFbDemoBtn: $('hls-fb-demo-btn'),
+        hlsFbEmbedBtn: $('hls-fb-embed-btn'),
+        hlsFbSettingsBtn: $('hls-fb-settings-btn'),
+        hlsTouchControls: $('hls-touch-controls'),
+        hlsPlayBtn: $('hls-play-btn'),
+        iconHlsPlay: $('icon-hls-play'),
+        iconHlsPause: $('icon-hls-pause'),
+        hlsMuteBtn: $('hls-mute-btn'),
+        iconHlsVol: $('icon-hls-vol'),
+        iconHlsMuted: $('icon-hls-muted'),
+        hlsLiveBtn: $('hls-live-btn'),
+        hlsAirplayBtn: $('hls-airplay-btn'),
+        hlsFsBtn: $('hls-fs-btn'),
+
+        landscapeDrawerFab: $('landscape-drawer-fab'),
+        landscapeFabLabel: $('landscape-fab-label'),
+        landscapeSideDrawer: $('landscape-side-drawer'),
+        lsTabChat: $('ls-tab-chat'),
+        lsTabChannels: $('ls-tab-channels'),
+        lsQualityBtn: $('ls-quality-btn'),
+        lsCloseDrawerBtn: $('ls-close-drawer-btn'),
+        lsDrawerChatPane: $('ls-drawer-chat-pane'),
+        lsDrawerChannelsPane: $('ls-drawer-channels-pane'),
+
+        activeStreamMiniHeader: $('active-stream-mini-header'),
+        miniAvatar: $('mini-avatar'),
+        miniName: $('mini-name'),
+        miniLivePill: $('mini-live-pill'),
+        miniTitle: $('mini-title'),
+        miniViewersBox: $('mini-viewers-box'),
+        miniViewersText: $('mini-viewers-text'),
+
+        btnEngineEmbed: $('btn-engine-embed'),
+        btnEngineHls: $('btn-engine-hls'),
+        btnQualitySheet: $('btn-quality-sheet'),
+        qualityBtnBadge: $('quality-btn-badge'),
+        btnPip: $('btn-pip'),
+        btnReload: $('btn-reload'),
+        btnStats: $('btn-stats'),
+        btnOpenKick: $('btn-open-kick'),
+        btnCloseStream: $('btn-close-stream'),
+
+        tabViewChannels: $('tab-view-channels'),
+        tabViewChat: $('tab-view-chat'),
+        tabViewSettings: $('tab-view-settings'),
+        navTabChannels: $('nav-tab-channels'),
+        navTabChat: $('nav-tab-chat'),
+        navTabSettings: $('nav-tab-settings'),
+        navChatActiveDot: $('nav-chat-active-dot'),
+
+        searchChannelInput: $('search-channel-input'),
+        btnRefreshChannels: $('btn-refresh-channels'),
+        refreshSpinIcon: $('refresh-spin-icon'),
+        btnOpenAddSheet: $('btn-open-add-sheet'),
+        channelsLiveBadge: $('channels-live-badge'),
+        channelsTotalBadge: $('channels-total-badge'),
+        channelsApiStatusPill: $('channels-api-status-pill'),
+        apiDot: $('api-dot'),
+        apiLabel: $('api-label'),
+        sectionLive: $('section-live'),
+        liveSubcount: $('live-subcount'),
+        listLive: $('list-live'),
+        sectionOffline: $('section-offline'),
+        offlineSubcount: $('offline-subcount'),
+        listOffline: $('list-offline'),
+        searchEmptyBox: $('search-empty-box'),
+        btnSearchQuickAdd: $('btn-search-quick-add'),
+
+        chatActiveHeader: $('chat-active-header'),
+        chatChannelLabel: $('chat-channel-label'),
+        btnChatPopout: $('btn-chat-popout'),
+        btnChatDisable: $('btn-chat-disable'),
+        chatOffPlaceholder: $('chat-off-placeholder'),
+        btnChatEnable: $('btn-chat-enable'),
+        btnChatExternal: $('btn-chat-external'),
+        chatIframeContainer: $('chat-iframe-container'),
+
+        iosHlsCapBadge: $('ios-hls-cap-badge'),
+        manualM3u8Form: $('manual-m3u8-form'),
+        manualM3u8Input: $('manual-m3u8-input'),
+        settingsDemoHlsBtn: $('settings-demo-hls-btn'),
+        settingMaxQuality: $('setting-max-quality'),
+        settingBufferProfile: $('setting-buffer-profile'),
+        settingOledToggle: $('setting-oled-toggle'),
+        settingsProxyStatus: $('settings-proxy-status'),
+        settingPublicProxy: $('setting-public-proxy'),
+        settingWorkerUrl: $('setting-worker-url'),
+        btnSaveWorker: $('btn-save-worker'),
+        btnCopyWorker: $('btn-copy-worker'),
+        workerCodeBox: $('worker-code-box'),
+        btnExportJson: $('btn-export-json'),
+        btnImportJson: $('btn-import-json'),
+        inputImportFile: $('input-import-file'),
+        btnResetChannels: $('btn-reset-channels'),
+
+        qualitySheetOverlay: $('quality-sheet-overlay'),
+        sheetQualitySubtitle: $('sheet-quality-subtitle'),
+        btnCloseQualitySheet: $('btn-close-quality-sheet'),
+        sheetEmbedMode: $('sheet-embed-mode'),
+        sheetSwitchToHls: $('sheet-switch-to-hls'),
+        sheetEmbedDemoBtn: $('sheet-embed-demo-btn'),
+        sheetHlsMode: $('sheet-hls-mode'),
+        sheetNativeNotice: $('sheet-native-notice'),
+        sheetQualityList: $('sheet-quality-list'),
+
+        addSheetOverlay: $('add-sheet-overlay'),
+        btnCloseAddSheet: $('btn-close-add-sheet'),
+        addChannelSheetForm: $('add-channel-sheet-form'),
+        addChannelSheetInput: $('add-channel-sheet-input'),
+
+        confirmModal: $('confirm-modal'),
+        confirmTitle: $('confirm-title'),
+        confirmMsg: $('confirm-msg'),
+        confirmCancel: $('confirm-cancel'),
+        confirmOk: $('confirm-ok'),
+        toastBox: $('toast-box'),
+      };
+
+      // -------------------- YARDIMCILAR --------------------
+
+      function showToast(msg, isError = false) {
+        if (state.toastTimer) clearTimeout(state.toastTimer);
+        els.toastBox.textContent = msg;
+        els.toastBox.classList.remove('hidden', 'toast-err');
+        if (isError) els.toastBox.classList.add('toast-err');
+        state.toastTimer = setTimeout(() => els.toastBox.classList.add('hidden'), 2400);
+      }
+
+      function openConfirm(title, msg, cb) {
+        els.confirmTitle.textContent = title;
+        els.confirmMsg.textContent = msg;
+        state.confirmCb = cb;
+        els.confirmModal.classList.remove('hidden');
+      }
+
+      function closeConfirm() {
+        els.confirmModal.classList.add('hidden');
+        state.confirmCb = null;
+      }
+
+      function parseSlug(raw) {
+        if (!raw || typeof raw !== 'string') return '';
+        let s = raw.trim().replace(/^@+/, '');
+        if (!s) return '';
+        try {
+          if (/^https?:\/\//i.test(s) || s.includes('kick.com/')) {
+            const u = new URL(/^https?:\/\//i.test(s) ? s : 'https://' + s);
+            const parts = u.pathname.split('/').filter(Boolean);
+            s = parts[0] === 'popout' && parts[1] ? parts[1] : parts[0] || '';
+          }
+        } catch (e) {
+          s = s.split(/[/?#]/)[0];
+        }
+        return s.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+      }
+
+      function formatCompactTR(n) {
+        const num = Number(n) || 0;
+        if (num >= 1000000) return (num / 1000000).toFixed(1).replace('.', ',') + ' Mn';
+        if (num >= 1000) return (num / 1000).toFixed(1).replace('.', ',') + ' B';
+        return String(num);
+      }
+
+      function formatBitrate(bps) {
+        const n = Number(bps) || 0;
+        if (n <= 0) return '';
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + ' Mbps';
+        return Math.round(n / 1000) + ' kbps';
+      }
+
+      /**
+       * %100 çevrimdışı çalışan inline SVG avatar oluşturucu (harici görsel CDN gerektirmez).
+       */
+      function svgAvatarUri(slug) {
+        const txt = ((slug || 'K').slice(0, 2)).toUpperCase();
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect width="80" height="80" rx="40" fill="#1a1d21"/><text x="40" y="47" font-family="-apple-system,sans-serif" font-size="26" font-weight="800" fill="#53fc18" text-anchor="middle">${txt}</text></svg>`;
+        return 'data:image/svg+xml,' + encodeURIComponent(svg);
+      }
+
+      function escHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function copyViaExecCommand(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta);
+        showToast(ok ? 'Worker kodu kopyalandı!' : 'Kopyalama başarısız oldu.', !ok);
+      }
+
+      function buildProxiedUrl(targetUrl, customBase) {
+        const base = (customBase || '').trim();
+        if (!base) return targetUrl;
+        return base.includes('{url}')
+          ? base.replace('{url}', encodeURIComponent(targetUrl))
+          : base + encodeURIComponent(targetUrl);
+      }
+
+      // -------------------- DEPOLAMA --------------------
+
+      function ensureMeta(slug) {
+        if (!state.meta[slug]) {
+          state.meta[slug] = {
+            slug,
+            displayName: slug,
+            avatar: '',
+            isLive: false,
+            viewers: 0,
+            title: '',
+            category: '',
+            playbackUrl: '',
+            statusFetched: false,
+          };
+        }
+        return state.meta[slug];
+      }
+
+      function loadStorage() {
+        try {
+          const ch = JSON.parse(localStorage.getItem(STORAGE_CHANNELS) || 'null');
+          state.channels = Array.isArray(ch) && ch.length ? [...new Set(ch.map(parseSlug).filter(Boolean))] : [...DEFAULT_CHANNELS];
+        } catch (e) {
+          state.channels = [...DEFAULT_CHANNELS];
+        }
+
+        try {
+          const st = JSON.parse(localStorage.getItem(STORAGE_SETTINGS) || 'null');
+          state.settings = st ? { ...DEFAULT_SETTINGS, ...st } : { ...DEFAULT_SETTINGS };
+        } catch (e) {
+          state.settings = { ...DEFAULT_SETTINGS };
+        }
+
+        try {
+          const rc = JSON.parse(localStorage.getItem(STORAGE_RECENTS) || 'null');
+          state.recents = Array.isArray(rc) ? rc.map(parseSlug).filter(Boolean).slice(0, 6) : [];
+        } catch (e) {
+          state.recents = [];
+        }
+
+        state.channels.forEach(ensureMeta);
+      }
+
+      function saveChannels() {
+        try { localStorage.setItem(STORAGE_CHANNELS, JSON.stringify(state.channels)); } catch (e) {}
+      }
+
+      function saveSettings() {
+        try { localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(state.settings)); } catch (e) {}
+      }
+
+      function pushRecent(slug) {
+        if (!slug) return;
+        state.recents = [slug, ...state.recents.filter((s) => s !== slug)].slice(0, 6);
+        try { localStorage.setItem(STORAGE_RECENTS, JSON.stringify(state.recents)); } catch (e) {}
+      }
+
+      function applyTheme() {
+        document.body.classList.toggle('theme-graphite', !state.settings.oledBlack);
+        const themeMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeMeta) themeMeta.setAttribute('content', state.settings.oledBlack ? '#000000' : '#0b0d10');
+        els.settingOledToggle.checked = Boolean(state.settings.oledBlack);
+      }
+
+      // -------------------- KICK API + PROXY --------------------
+
+      async function fetchTimeout(url, asText = false, ms = 6000) {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), ms);
+        try {
+          const res = await fetch(url, { signal: ctrl.signal });
+          clearTimeout(tid);
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return asText ? await res.text() : await res.json();
+        } catch (err) {
+          clearTimeout(tid);
+          throw err;
+        }
+      }
+
+      async function fetchKickApi(endpointUrl) {
+        const worker = (state.settings.customWorkerUrl || '').trim();
+        if (worker) {
+          try {
+            const data = await fetchTimeout(buildProxiedUrl(endpointUrl, worker), false, 7000);
+            return { data, via: 'proxy' };
+          } catch (e) {}
+        }
+
+        try {
+          const data = await fetchTimeout(endpointUrl, false, 4500);
+          return { data, via: 'direct' };
+        } catch (e) {}
+
+        if (state.settings.usePublicProxy) {
+          for (const mk of PUBLIC_PROXIES) {
+            try {
+              const data = await fetchTimeout(mk(endpointUrl), false, 6000);
+              return { data, via: 'proxy' };
+            } catch (e) {}
+          }
+        }
+        return { data: null, via: 'blocked' };
+      }
+
+      async function fetchChannelInfo(slug) {
+        const m = ensureMeta(slug);
+        const res = await fetchKickApi(`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`);
+        if (!res.data) return res.via;
+
+        const d = res.data;
+        const ls = d.livestream;
+        m.displayName = (d.user && d.user.username) || d.slug || slug;
+        m.avatar = (d.user && d.user.profile_pic) || m.avatar || '';
+        m.statusFetched = true;
+
+        if (ls && ls.is_live) {
+          m.isLive = true;
+          m.viewers = Number(ls.viewer_count) || 0;
+          m.title = ls.session_title || '';
+          m.category =
+            (Array.isArray(ls.categories) && ls.categories[0] && ls.categories[0].name) ||
+            (ls.category && ls.category.name) ||
+            'Canlı';
+          m.playbackUrl = d.playback_url || ls.playback_url || '';
+        } else {
+          m.isLive = false;
+          m.viewers = 0;
+          m.title = '';
+          m.category = '';
+          m.playbackUrl = '';
+        }
+        return res.via;
+      }
+
+      async function refreshAllChannels() {
+        if (state.isRefreshing) return;
+        state.isRefreshing = true;
+        els.refreshSpinIcon.classList.add('spinning');
+
+        let directOk = 0;
+        let proxyOk = 0;
+
+        const list = [...state.channels];
+        for (let i = 0; i < list.length; i += 4) {
+          const batch = list.slice(i, i + 4);
+          const results = await Promise.all(batch.map((s) => fetchChannelInfo(s)));
+          results.forEach((via) => {
+            if (via === 'direct') directOk++;
+            else if (via === 'proxy') proxyOk++;
+          });
+        }
+
+        state.apiStatus = directOk > 0 ? 'direct' : proxyOk > 0 ? 'proxy' : 'blocked';
+        state.isRefreshing = false;
+        els.refreshSpinIcon.classList.remove('spinning');
+
+        renderApiStatus();
+        renderChannelLists();
+        renderActiveMiniHeader();
+        if (!state.activeSlug && !state.hlsIsDemo) renderEmptyQuickChips();
+      }
+
+      // -------------------- iOS HLS & MANİFEST AYRIŞTIRMA MOTORU --------------------
+
+      function detectHlsCapability() {
+        let hasHlsJs = false;
+        try {
+          hasHlsJs = Boolean(window.Hls && typeof window.Hls.isSupported === 'function' && window.Hls.isSupported());
+        } catch (e) {
+          hasHlsJs = false;
+        }
+        const hasMms = typeof window.ManagedMediaSource !== 'undefined';
+        const hasMse = typeof window.MediaSource !== 'undefined';
+        const canNative = Boolean(els.hlsVideo && typeof els.hlsVideo.canPlayType === 'function' && els.hlsVideo.canPlayType('application/vnd.apple.mpegurl'));
+
+        if (hasHlsJs) {
+          return {
+            mode: 'hlsjs',
+            label: hasMms && !hasMse ? 'HLS.js (iOS MMS)' : 'HLS.js (MSE)',
+          };
+        }
+        if (canNative) {
+          return {
+            mode: 'native',
+            label: 'iOS Native HLS',
+          };
+        }
+        return { mode: 'none', label: 'Desteklenmiyor' };
+      }
+
+      async function parseMasterM3u8Variants(masterUrl) {
+        let text = '';
+        const worker = (state.settings.customWorkerUrl || '').trim();
+
+        try {
+          text = await fetchTimeout(masterUrl, true, 5000);
+        } catch (e) {
+          if (worker) {
+            text = await fetchTimeout(buildProxiedUrl(masterUrl, worker), true, 6000);
+          } else {
+            throw e;
+          }
+        }
+
+        const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        const variants = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          if (line.startsWith('#EXT-X-STREAM-INF:')) {
+            const attrs = line.slice('#EXT-X-STREAM-INF:'.length);
+            const nextUrlLine = lines[i + 1];
+            if (!nextUrlLine || nextUrlLine.startsWith('#')) continue;
+
+            const bwMatch = attrs.match(/BANDWIDTH=(\d+)/i);
+            const resMatch = attrs.match(/RESOLUTION=(\d+)x(\d+)/i);
+            const fpsMatch = attrs.match(/FRAME-RATE=([\d.]+)/i);
+
+            const bitrate = bwMatch ? parseInt(bwMatch[1], 10) : 0;
+            const width = resMatch ? parseInt(resMatch[1], 10) : 0;
+            const height = resMatch ? parseInt(resMatch[2], 10) : 0;
+            const fps = fpsMatch ? Math.round(parseFloat(fpsMatch[1])) : 0;
+            const fpsTag = fps >= 50 ? String(fps) : '';
+            const label = height > 0 ? `${height}p${fpsTag}` : bitrate ? `${Math.round(bitrate / 1000)}k` : `Seviye ${variants.length + 1}`;
+
+            let resolvedUrl = nextUrlLine;
+            try { resolvedUrl = new URL(nextUrlLine, masterUrl).href; } catch (e) {}
+
+            variants.push({
+              index: variants.length,
+              label,
+              height,
+              width,
+              bitrate,
+              fps,
+              url: resolvedUrl,
+            });
+          }
+        }
+
+        return variants.sort((a, b) => b.height - a.height || b.bitrate - a.bitrate);
+      }
+
+      function pickPreferredLevel(levels, pref) {
+        if (!pref || pref === 'auto' || !levels.length) return -1;
+        const maxH = parseInt(pref, 10);
+        if (!maxH) return -1;
+        const fit = levels.filter((l) => l.height > 0 && l.height <= maxH);
+        if (fit.length) {
+          fit.sort((a, b) => b.height - a.height || b.bitrate - a.bitrate);
+          return fit[0].index;
+        }
+        const lowest = [...levels].sort((a, b) => (a.height || 9999) - (b.height || 9999));
+        return lowest[0].index;
+      }
+
+      function destroyHls() {
+        if (state.statsTimer) {
+          clearInterval(state.statsTimer);
+          state.statsTimer = null;
+        }
+        if (state.hlsInstance) {
+          try { state.hlsInstance.destroy(); } catch (e) {}
+          state.hlsInstance = null;
+        }
+        try {
+          els.hlsVideo.pause();
+          els.hlsVideo.removeAttribute('src');
+          els.hlsVideo.load();
+        } catch (e) {}
+
+        state.hlsLevels = [];
+        state.hlsManualLevel = -1;
+        state.hlsCurrentLevel = -1;
+        state.hlsNativeCorsBlocked = false;
+      }
+
+      function showHlsFallback(title, desc) {
+        destroyHls();
+        els.playerEmptyView.classList.add('hidden');
+        els.playerEmbedMount.innerHTML = '';
+        els.playerEmbedMount.classList.add('hidden');
+        els.playerHlsMount.classList.remove('hidden');
+
+        els.hlsFallbackTitle.textContent = title || 'HLS (.m3u8) Akışı Hazır Değil';
+        els.hlsFallbackDesc.textContent =
+          desc || 'Bu kanalın .m3u8 akışı alınamadı. Ayarlar\'dan Cloudflare Worker bağla, manuel .m3u8 gir veya Demo HLS testini başlat.';
+        els.hlsFallbackOverlay.classList.remove('hidden');
+        els.hlsTouchControls.classList.add('hidden');
+
+        updateEngineButtonsUI();
+        updateQualityBadgeUI();
+      }
+
+      async function loadHlsUrl(m3u8Url, opts = {}) {
+        const url = (m3u8Url || '').trim();
+        if (!url) {
+          showHlsFallback();
+          return;
+        }
+
+        destroyHls();
+        state.engine = 'hls';
+        state.hlsMasterUrl = url;
+        state.hlsActiveUrl = url;
+        state.hlsIsDemo = Boolean(opts.isDemo);
+
+        els.playerEmptyView.classList.add('hidden');
+        els.playerEmbedMount.innerHTML = '';
+        els.playerEmbedMount.classList.add('hidden');
+        els.playerHlsMount.classList.remove('hidden');
+        els.hlsFallbackOverlay.classList.add('hidden');
+        els.hlsTouchControls.classList.remove('hidden');
+
+        const cap = detectHlsCapability();
+        state.hlsSubEngine = cap.label;
+
+        const profKey = state.settings.bufferProfile in BUFFER_PROFILES ? state.settings.bufferProfile : 'balanced';
+        const prof = BUFFER_PROFILES[profKey];
+        els.statEngine.textContent = cap.label;
+        els.statProfile.textContent = prof.label;
+
+        if (cap.mode === 'hlsjs') {
+          const hls = new window.Hls({
+            enableWorker: true,
+            backBufferLength: 25,
+            lowLatencyMode: prof.lowLatencyMode,
+            maxBufferLength: prof.maxBufferLength,
+            maxMaxBufferLength: prof.maxMaxBufferLength,
+            liveSyncDurationCount: prof.liveSyncDurationCount,
+            liveMaxLatencyDurationCount: prof.liveMaxLatencyDurationCount,
+          });
+          state.hlsInstance = hls;
+          hls.loadSource(url);
+          hls.attachMedia(els.hlsVideo);
+
+          hls.on(window.Hls.Events.MANIFEST_PARSED, (_e, data) => {
+            const raw = Array.isArray(data.levels) ? data.levels : hls.levels || [];
+            state.hlsLevels = raw
+              .map((lvl, idx) => {
+                const h = lvl.height || 0;
+                const fps = lvl.attrs && lvl.attrs['FRAME-RATE'] ? Math.round(parseFloat(lvl.attrs['FRAME-RATE'])) : 0;
+                const fpsTag = fps >= 50 ? String(fps) : '';
+                return {
+                  index: idx,
+                  height: h,
+                  width: lvl.width || 0,
+                  bitrate: lvl.bitrate || 0,
+                  fps,
+                  label: h > 0 ? `${h}p${fpsTag}` : `Seviye ${idx + 1}`,
+                };
+              })
+              .sort((a, b) => b.height - a.height || b.bitrate - a.bitrate);
+
+            const prefIdx = pickPreferredLevel(state.hlsLevels, state.settings.preferredQuality);
+            if (prefIdx !== -1) {
+              hls.currentLevel = prefIdx;
+              state.hlsManualLevel = prefIdx;
+              state.hlsCurrentLevel = prefIdx;
+            } else {
+              hls.currentLevel = -1;
+              state.hlsManualLevel = -1;
+              state.hlsCurrentLevel = hls.currentLevel;
+            }
+
+            playHlsVideoSafely();
+            startStatsLoop();
+            updateQualityBadgeUI();
+            renderQualitySheet();
+          });
+
+          hls.on(window.Hls.Events.LEVEL_SWITCHED, (_e, data) => {
+            state.hlsCurrentLevel = data.level;
+            updateQualityBadgeUI();
+            renderQualitySheet();
+            updateStatsOverlay();
+          });
+
+          hls.on(window.Hls.Events.ERROR, (_e, data) => {
+            if (!data || !data.fatal) return;
+            if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
+              if (data.response && (data.response.code === 403 || data.response.code === 404)) {
+                showHlsFallback('HLS Erişim / CORS Hatası', 'Bu .m3u8 akışı engellendi. Worker bağlayabilir, Embed modunu açabilir veya Demo HLS testini deneyebilirsin.');
+              } else {
+                try { hls.startLoad(); } catch (err) { showHlsFallback('Ağ Hatası', 'Akış yüklenemedi. Yenile butonunu deneyebilirsin.'); }
+              }
+            } else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
+              try { hls.recoverMediaError(); } catch (err) { showHlsFallback('Medya Hatası', 'Video çözümlenemedi.'); }
+            } else {
+              showHlsFallback('HLS Oynatma Hatası', 'Akış oynatılamadı. Embed moduna geçebilir veya Demo HLS akışını deneyebilirsin.');
+            }
+          });
+        } else if (cap.mode === 'native') {
+          let initialSrc = url;
+          try {
+            const variants = await parseMasterM3u8Variants(url);
+            state.hlsLevels = variants;
+            state.hlsNativeCorsBlocked = false;
+
+            const prefIdx = pickPreferredLevel(variants, state.settings.preferredQuality);
+            if (prefIdx !== -1) {
+              const picked = variants.find((v) => v.index === prefIdx);
+              if (picked && picked.url) {
+                initialSrc = picked.url;
+                state.hlsManualLevel = prefIdx;
+                state.hlsCurrentLevel = prefIdx;
+              }
+            }
+          } catch (e) {
+            state.hlsLevels = [];
+            state.hlsNativeCorsBlocked = true;
+          }
+
+          state.hlsActiveUrl = initialSrc;
+          els.hlsVideo.src = initialSrc;
+          playHlsVideoSafely();
+          startStatsLoop();
+        } else {
+          showHlsFallback('HLS Desteklenmiyor', 'Tarayıcın HLS desteklemiyor. Embed modunu kullanabilirsin.');
+        }
+
+        if (window.WebKitPlaybackTargetAvailabilityEvent && typeof els.hlsVideo.webkitShowPlaybackTargetPicker === 'function') {
+          els.hlsAirplayBtn.classList.remove('hidden');
+        }
+
+        updateEngineButtonsUI();
+        updateQualityBadgeUI();
+        renderActiveMiniHeader();
+        renderQualitySheet();
+        revealTouchControls();
+      }
+
+      function playHlsVideoSafely() {
+        els.hlsVideo.play().catch(() => {
+          els.hlsVideo.muted = true;
+          syncHlsAudioUI();
+          els.hlsVideo.play().catch(() => {});
+        });
+      }
+
+      function applyHlsQuality(levelIndex) {
+        state.hlsManualLevel = levelIndex;
+
+        if (state.hlsInstance) {
+          state.hlsInstance.currentLevel = levelIndex;
+          state.hlsInstance.nextLevel = levelIndex;
+        } else {
+          const prevTime = els.hlsVideo.currentTime || 0;
+          const isVod = Number.isFinite(els.hlsVideo.duration) && els.hlsVideo.duration > 0;
+          const targetObj = state.hlsLevels.find((l) => l.index === levelIndex);
+          const nextUrl = levelIndex === -1 || !targetObj ? state.hlsMasterUrl : targetObj.url;
+
+          if (nextUrl && nextUrl !== state.hlsActiveUrl) {
+            state.hlsActiveUrl = nextUrl;
+            state.hlsCurrentLevel = levelIndex;
+            els.hlsVideo.src = nextUrl;
+            if (isVod && prevTime > 0) {
+              els.hlsVideo.addEventListener('loadedmetadata', function restorePos() {
+                els.hlsVideo.removeEventListener('loadedmetadata', restorePos);
+                try { els.hlsVideo.currentTime = prevTime; } catch (e) {}
+              });
+            }
+            playHlsVideoSafely();
+          }
+        }
+
+        const chosen = state.hlsLevels.find((l) => l.index === levelIndex);
+        showToast(levelIndex === -1 ? 'Kalite: Otomatik' : `Kalite seçildi: ${chosen ? chosen.label : levelIndex}`);
+        updateQualityBadgeUI();
+        renderQualitySheet();
+      }
+
+      function startStatsLoop() {
+        if (state.statsTimer) clearInterval(state.statsTimer);
+        updateStatsOverlay();
+        state.statsTimer = setInterval(updateStatsOverlay, 1000);
+      }
+
+      function updateStatsOverlay() {
+        if (!state.statsVisible || state.engine !== 'hls') return;
+        const v = els.hlsVideo;
+        let buf = 0;
+        try {
+          const t = v.currentTime;
+          for (let i = 0; i < v.buffered.length; i++) {
+            if (v.buffered.start(i) <= t + 0.5 && v.buffered.end(i) >= t) {
+              buf = Math.max(0, v.buffered.end(i) - t);
+              break;
+            }
+          }
+        } catch (e) {}
+
+        const activeObj = state.hlsLevels.find((l) => l.index === (state.hlsManualLevel !== -1 ? state.hlsManualLevel : state.hlsCurrentLevel));
+        const w = v.videoWidth || (activeObj && activeObj.width) || 0;
+        const h = v.videoHeight || (activeObj && activeObj.height) || 0;
+        const fps = activeObj && activeObj.fps ? ` @${activeObj.fps}fps` : '';
+
+        let dropped = 0;
+        try {
+          if (typeof v.getVideoPlaybackQuality === 'function') {
+            dropped = v.getVideoPlaybackQuality().droppedVideoFrames || 0;
+          }
+        } catch (e) {}
+
+        els.statEngine.textContent = state.hlsSubEngine || 'HLS';
+        els.statRes.textContent = w && h ? `${w}x${h}${fps}` : 'Otomatik';
+        els.statBitrate.textContent = activeObj && activeObj.bitrate ? formatBitrate(activeObj.bitrate) : '-';
+        els.statBuffer.textContent = `${buf.toFixed(1)} sn`;
+        els.statDropped.textContent = String(dropped);
+      }
+
+      function toggleStatsOverlay() {
+        if (state.engine !== 'hls') {
+          showToast('Canlı istatistikler HLS modunda çalışır.');
+          return;
+        }
+        state.statsVisible = !state.statsVisible;
+        els.hlsStatsOverlay.classList.toggle('hidden', !state.statsVisible);
+        els.btnStats.classList.toggle('active-stat', state.statsVisible);
+        if (state.statsVisible) updateStatsOverlay();
+      }
+
+      async function triggerPictureInPicture() {
+        if (state.engine !== 'hls' || (!els.hlsVideo.src && !state.hlsInstance)) {
+          showToast('PiP için HLS modunu açın.');
+          return;
+        }
+        const v = els.hlsVideo;
+        try {
+          if (typeof v.webkitSupportsPresentationMode === 'function' && v.webkitSupportsPresentationMode('picture-in-picture')) {
+            const nextMode = v.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture';
+            v.webkitSetPresentationMode(nextMode);
+            return;
+          }
+          if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+          } else if (document.pictureInPictureEnabled && typeof v.requestPictureInPicture === 'function') {
+            await v.requestPictureInPicture();
+          } else {
+            showToast('Bu görünümde PiP desteklenmiyor.', true);
+          }
+        } catch (err) {
+          showToast('PiP başlatılamadı (önce videoyu oynatın).', true);
+        }
+      }
+
+      function triggerFullscreen() {
+        const v = els.hlsVideo;
+        try {
+          if (typeof v.webkitEnterFullscreen === 'function') {
+            v.webkitEnterFullscreen();
+          } else if (document.fullscreenElement) {
+            document.exitFullscreen();
+          } else if (els.playerHlsMount.requestFullscreen) {
+            els.playerHlsMount.requestFullscreen();
+          }
+        } catch (e) {}
+      }
+
+      function revealTouchControls() {
+        state.controlsVisible = true;
+        els.hlsTouchControls.classList.remove('controls-hidden');
+        if (state.controlsHideTimer) clearTimeout(state.controlsHideTimer);
+        state.controlsHideTimer = setTimeout(() => {
+          if (!els.hlsVideo.paused) {
+            state.controlsVisible = false;
+            els.hlsTouchControls.classList.add('controls-hidden');
+          }
+        }, 3200);
+      }
+
+      function syncHlsPlayUI() {
+        const paused = els.hlsVideo.paused;
+        els.iconHlsPlay.classList.toggle('hidden', !paused);
+        els.iconHlsPause.classList.toggle('hidden', paused);
+      }
+
+      function syncHlsAudioUI() {
+        const muted = els.hlsVideo.muted || els.hlsVideo.volume === 0;
+        els.iconHlsVol.classList.toggle('hidden', muted);
+        els.iconHlsMuted.classList.toggle('hidden', !muted);
+      }
+
+      // -------------------- KANAL AÇMA & MOTOR GEÇİŞİ --------------------
+
+      function mountEmbed(slug, bust = false) {
+        destroyHls();
+        els.playerEmptyView.classList.add('hidden');
+        els.playerHlsMount.classList.add('hidden');
+        els.playerEmbedMount.classList.remove('hidden');
+        els.playerEmbedMount.innerHTML = '';
+
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://player.kick.com/${encodeURIComponent(slug)}?autoplay=true${bust ? '&_r=' + Date.now() : ''}`;
+        iframe.allowFullscreen = true;
+        iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+        iframe.setAttribute('playsinline', '');
+        iframe.title = `${slug} Kick Canlı Yayın`;
+        els.playerEmbedMount.appendChild(iframe);
+      }
+
+      async function switchEngine(nextEngine) {
+        if (nextEngine !== 'embed' && nextEngine !== 'hls') return;
+        state.engine = nextEngine;
+        updateEngineButtonsUI();
+
+        if (nextEngine === 'embed') {
+          destroyHls();
+          state.hlsIsDemo = false;
+          els.playerHlsMount.classList.add('hidden');
+          if (state.activeSlug) {
+            mountEmbed(state.activeSlug);
+          } else {
+            els.playerEmptyView.classList.remove('hidden');
+          }
+          updateQualityBadgeUI();
+          renderActiveMiniHeader();
+          renderQualitySheet();
+          return;
+        }
+
+        els.playerEmbedMount.innerHTML = '';
+        els.playerEmbedMount.classList.add('hidden');
+
+        if (state.hlsIsDemo && state.hlsMasterUrl) {
+          loadHlsUrl(state.hlsMasterUrl, { isDemo: true });
+          return;
+        }
+
+        if (state.activeSlug) {
+          const m = ensureMeta(state.activeSlug);
+          if (!m.playbackUrl && !m.statusFetched) {
+            await fetchChannelInfo(state.activeSlug);
+            renderChannelLists();
+            renderActiveMiniHeader();
+          }
+          if (m.playbackUrl) {
+            loadHlsUrl(m.playbackUrl, { isDemo: false });
+          } else {
+            showHlsFallback(
+              `${m.displayName || m.slug} — .m3u8 Alınamadı`,
+              'Canlı Kick .m3u8 akışını otomatik almak için Ayarlar\'dan Cloudflare Worker bağla veya aşağıdan Demo HLS testini başlat.'
+            );
+          }
+        } else {
+          showHlsFallback();
+        }
+      }
+
+      function openChannel(rawSlug, updateHash = true) {
+        const slug = parseSlug(rawSlug);
+        if (!slug) {
+          showToast('Geçerli bir kanal adı girin.', true);
+          return;
+        }
+
+        if (!state.channels.includes(slug)) {
+          state.channels.unshift(slug);
+          saveChannels();
+        }
+        ensureMeta(slug);
+        pushRecent(slug);
+
+        state.activeSlug = slug;
+        state.hlsIsDemo = false;
+
+        if (updateHash) {
+          const h = '#' + slug;
+          if (window.location.hash !== h) {
+            try { window.history.replaceState(null, '', h); } catch (e) { window.location.hash = slug; }
+          }
+        }
+
+        if (state.engine === 'hls') {
+          switchEngine('hls');
+        } else {
+          mountEmbed(slug);
+        }
+
+        if (state.chatEnabled) {
+          mountChatInActiveHost();
+        }
+
+        document.title = `${state.meta[slug].displayName || slug} — Kick Lite iOS`;
+        updateEngineButtonsUI();
+        updateQualityBadgeUI();
+        renderActiveMiniHeader();
+        renderChannelLists();
+
+        if (!state.meta[slug].statusFetched) {
+          fetchChannelInfo(slug).then(() => {
+            renderChannelLists();
+            renderActiveMiniHeader();
+            if (state.engine === 'hls' && state.activeSlug === slug && state.meta[slug].playbackUrl && !state.hlsInstance && !els.hlsVideo.src) {
+              loadHlsUrl(state.meta[slug].playbackUrl, { isDemo: false });
+            }
+          });
+        }
+      }
+
+      function startDemoHls() {
+        state.hlsIsDemo = true;
+        closeSheet(els.qualitySheetOverlay);
+        loadHlsUrl(DEMO_HLS_URL, { isDemo: true });
+        document.title = 'Demo HLS Test — Kick Lite iOS';
+        showToast('Demo HLS yayını açıldı — Kalite butonundan çözünürlük seç!');
+      }
+
+      function closeStream() {
+        state.activeSlug = '';
+        state.hlsIsDemo = false;
+        state.hlsMasterUrl = '';
+        state.hlsActiveUrl = '';
+        destroyHls();
+        els.playerHlsMount.classList.add('hidden');
+        els.playerEmbedMount.innerHTML = '';
+        els.playerEmbedMount.classList.add('hidden');
+        els.playerEmptyView.classList.remove('hidden');
+        els.activeStreamMiniHeader.classList.add('hidden');
+        disableChat();
+
+        try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) {}
+        document.title = 'Kick Lite iOS — Ultra Hafif Yayın Oynatıcı';
+        updateQualityBadgeUI();
+        renderChannelLists();
+        renderEmptyQuickChips();
+        showToast('Yayın kapatıldı, bellek temizlendi.');
+      }
+
+      function reloadStream() {
+        if (state.engine === 'hls') {
+          if (state.hlsMasterUrl) {
+            loadHlsUrl(state.hlsMasterUrl, { isDemo: state.hlsIsDemo });
+            showToast('HLS yayını yenilendi.');
+          } else if (state.activeSlug) {
+            switchEngine('hls');
+          } else {
+            showToast('Aktif yayın yok.', true);
+          }
+          return;
+        }
+        if (!state.activeSlug) {
+          showToast('Aktif yayın yok.', true);
+          return;
+        }
+        els.playerEmbedMount.innerHTML = '';
+        setTimeout(() => {
+          if (state.activeSlug && state.engine === 'embed') mountEmbed(state.activeSlug, true);
+        }, 60);
+        showToast('Oynatıcı yenilendi.');
+      }
+
+      // -------------------- SOHBET YÖNETİMİ --------------------
+
+      function createChatIframe(slug) {
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://kick.com/popout/${encodeURIComponent(slug)}/chat`;
+        iframe.title = `${slug} Sohbet`;
+        return iframe;
+      }
+
+      function mountChatInActiveHost() {
+        els.chatIframeContainer.innerHTML = '';
+        els.lsDrawerChatPane.innerHTML = '';
+        if (!state.chatEnabled || !state.activeSlug) return;
+
+        const isLandscapeDrawer =
+          window.matchMedia('(orientation: landscape) and (max-height: 520px)').matches &&
+          state.landscapeDrawerOpen &&
+          state.landscapeDrawerTab === 'chat';
+
+        if (isLandscapeDrawer) {
+          els.lsDrawerChatPane.appendChild(createChatIframe(state.activeSlug));
+        } else {
+          els.chatChannelLabel.textContent = state.activeSlug;
+          els.chatIframeContainer.appendChild(createChatIframe(state.activeSlug));
+        }
+      }
+
+      function enableChat() {
+        if (!state.activeSlug) {
+          showToast('Sohbeti açmak için önce bir kanal seç.', true);
+          return;
+        }
+        state.chatEnabled = true;
+        els.chatOffPlaceholder.classList.add('hidden');
+        els.chatActiveHeader.classList.remove('hidden');
+        els.chatIframeContainer.classList.remove('hidden');
+        els.navChatActiveDot.classList.remove('hidden');
+        mountChatInActiveHost();
+      }
+
+      function disableChat() {
+        state.chatEnabled = false;
+        els.chatIframeContainer.innerHTML = '';
+        els.lsDrawerChatPane.innerHTML = '';
+        els.chatIframeContainer.classList.add('hidden');
+        els.chatActiveHeader.classList.add('hidden');
+        els.chatOffPlaceholder.classList.remove('hidden');
+        els.navChatActiveDot.classList.add('hidden');
+      }
+
+      // -------------------- SEKMELER & ÇEKMECELER --------------------
+
+      function switchTab(tab) {
+        state.activeTab = tab;
+        els.tabViewChannels.classList.toggle('hidden', tab !== 'channels');
+        els.tabViewChat.classList.toggle('hidden', tab !== 'chat');
+        els.tabViewSettings.classList.toggle('hidden', tab !== 'settings');
+
+        els.navTabChannels.classList.toggle('active', tab === 'channels');
+        els.navTabChat.classList.toggle('active', tab === 'chat');
+        els.navTabSettings.classList.toggle('active', tab === 'settings');
+
+        if (tab === 'settings') renderSettingsUI();
+      }
+
+      function openSheet(overlayEl) {
+        overlayEl.classList.remove('hidden');
+        requestAnimationFrame(() => overlayEl.classList.add('sheet-open'));
+      }
+
+      function closeSheet(overlayEl) {
+        overlayEl.classList.remove('sheet-open');
+        setTimeout(() => overlayEl.classList.add('hidden'), 200);
+      }
+
+      function toggleLandscapeDrawer(forceState) {
+        state.landscapeDrawerOpen = typeof forceState === 'boolean' ? forceState : !state.landscapeDrawerOpen;
+        els.landscapeSideDrawer.classList.toggle('drawer-open', state.landscapeDrawerOpen);
+        els.landscapeFabLabel.textContent = state.landscapeDrawerOpen ? 'Gizle' : 'Panel';
+
+        if (state.landscapeDrawerOpen) {
+          renderLandscapeDrawer();
+        } else {
+          els.lsDrawerChatPane.innerHTML = '';
+        }
+      }
+
+      function renderLandscapeDrawer() {
+        const isChat = state.landscapeDrawerTab === 'chat';
+        els.lsTabChat.classList.toggle('active', isChat);
+        els.lsTabChannels.classList.toggle('active', !isChat);
+        els.lsDrawerChatPane.classList.toggle('hidden', !isChat);
+        els.lsDrawerChannelsPane.classList.toggle('hidden', isChat);
+
+        if (isChat) {
+          els.lsDrawerChatPane.innerHTML = '';
+          if (!state.activeSlug) {
+            els.lsDrawerChatPane.innerHTML = '<div class="txt-muted" style="padding:18px;text-align:center;font-size:12px;">Önce Kanallar\'dan bir yayın seç.</div>';
+          } else if (!state.chatEnabled) {
+            const box = document.createElement('div');
+            box.style.cssText = 'padding:18px;margin:auto;text-align:center;display:flex;flex-direction:column;gap:10px;';
+            box.innerHTML = `
+              <p class="txt-muted" style="font-size:11px;margin:0;">Sohbet pil tasarrufu için kapalı.</p>
+              <button type="button" class="btn-primary">Sohbeti Aç</button>
+            `;
+            box.querySelector('button').addEventListener('click', () => {
+              enableChat();
+              renderLandscapeDrawer();
+            });
+            els.lsDrawerChatPane.appendChild(box);
+          } else {
+            els.lsDrawerChatPane.appendChild(createChatIframe(state.activeSlug));
+          }
+        } else {
+          els.lsDrawerChannelsPane.innerHTML = '';
+          const { live, offline } = getSortedChannels('');
+          [...live, ...offline].forEach((m) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'channel-row' + (state.activeSlug === m.slug ? ' is-active' : '');
+            btn.style.minHeight = '42px';
+            btn.innerHTML = `
+              <span class="chip-dot ${m.isLive ? 'live' : ''}"></span>
+              <span style="flex:1;min-width:0;font-size:12px;font-weight:700;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(m.displayName || m.slug)}</span>
+              <span class="txt-muted" style="font-size:10px;">${m.isLive ? escHtml(formatCompactTR(m.viewers)) : ''}</span>
+            `;
+            btn.addEventListener('click', () => {
+              openChannel(m.slug);
+              renderLandscapeDrawer();
+            });
+            els.lsDrawerChannelsPane.appendChild(btn);
+          });
+        }
+      }
+
+      // -------------------- RENDER FONKSİYONLARI --------------------
+
+      function updateEngineButtonsUI() {
+        const isHls = state.engine === 'hls';
+        els.btnEngineEmbed.className = isHls ? '' : 'active-embed';
+        els.btnEngineHls.className = isHls ? 'active-hls' : '';
+      }
+
+      function updateQualityBadgeUI() {
+        if (state.engine !== 'hls') {
+          els.qualityBtnBadge.textContent = 'Embed';
+          els.qualityBtnBadge.className = 'quality-tag';
+          els.lsQualityBtn.textContent = 'Kalite';
+          return;
+        }
+        const manual = state.hlsLevels.find((l) => l.index === state.hlsManualLevel);
+        const cur = state.hlsLevels.find((l) => l.index === state.hlsCurrentLevel);
+        let text = 'Oto';
+        if (state.hlsManualLevel !== -1 && manual) text = manual.label;
+        else if (cur) text = `Oto (${cur.label})`;
+        else if (!state.hlsInstance && !els.hlsVideo.src) text = 'HLS';
+
+        els.qualityBtnBadge.textContent = text;
+        els.qualityBtnBadge.className = 'quality-tag hls-on';
+        els.lsQualityBtn.textContent = text;
+      }
+
+      function renderQualitySheet() {
+        const isHls = state.engine === 'hls';
+        els.sheetEmbedMode.classList.toggle('hidden', isHls);
+        els.sheetHlsMode.classList.toggle('hidden', !isHls);
+
+        if (!isHls) {
+          els.sheetQualitySubtitle.textContent = 'Şu an Embed oynatıcı aktif';
+          return;
+        }
+
+        els.sheetQualitySubtitle.textContent = `Aktif Motor: ${state.hlsSubEngine || 'HLS'}`;
+
+        if (state.hlsSubEngine === 'iOS Native HLS' && state.hlsNativeCorsBlocked) {
+          els.sheetNativeNotice.textContent =
+            'Bu yayın CORS nedeniyle manifest ayrıştırmasına izin vermedi; iOS Native Otomatik Kalite ile oynatılıyor.';
+          els.sheetNativeNotice.classList.remove('hidden');
+        } else if (state.hlsSubEngine === 'iOS Native HLS' && state.hlsLevels.length > 0) {
+          els.sheetNativeNotice.textContent =
+            'iOS Native HLS Manifest Ayrıştırıcı aktif — tüm çözünürlükler aşağıdan manuel seçilebilir.';
+          els.sheetNativeNotice.classList.remove('hidden');
+        } else {
+          els.sheetNativeNotice.classList.add('hidden');
+        }
+
+        document.querySelectorAll('.sheet-buf-btn').forEach((btn) => {
+          btn.classList.toggle('active', btn.getAttribute('data-buf') === state.settings.bufferProfile);
+        });
+
+        els.sheetQualityList.innerHTML = '';
+
+        if (!state.hlsLevels.length) {
+          els.sheetQualityList.innerHTML =
+            '<div class="txt-muted" style="background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;padding:12px;font-size:12px;text-align:center;">Çözünürlük listesi yok (Otomatik akış veya henüz HLS yüklenmedi).</div>';
+          return;
+        }
+
+        const autoOn = state.hlsManualLevel === -1;
+        const curObj = state.hlsLevels.find((l) => l.index === state.hlsCurrentLevel);
+
+        const autoBtn = document.createElement('button');
+        autoBtn.type = 'button';
+        autoBtn.className = 'quality-opt-btn' + (autoOn ? ' selected' : '');
+        autoBtn.innerHTML = `
+          <span>Otomatik${autoOn && curObj ? ` (${escHtml(curObj.label)})` : ''}</span>
+          <span style="font-size:11px;">${autoOn ? '✓ Seçili' : 'Uyarlamalı'}</span>
+        `;
+        autoBtn.addEventListener('click', () => {
+          applyHlsQuality(-1);
+          closeSheet(els.qualitySheetOverlay);
+        });
+        els.sheetQualityList.appendChild(autoBtn);
+
+        state.hlsLevels.forEach((lvl) => {
+          const selected = state.hlsManualLevel === lvl.index;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'quality-opt-btn' + (selected ? ' selected' : '');
+          btn.innerHTML = `
+            <span>${escHtml(lvl.label)}</span>
+            <span class="txt-muted" style="font-size:11px;font-family:monospace;">${escHtml(formatBitrate(lvl.bitrate))}${selected ? ' ✓' : ''}</span>
+          `;
+          btn.addEventListener('click', () => {
+            applyHlsQuality(lvl.index);
+            closeSheet(els.qualitySheetOverlay);
+          });
+          els.sheetQualityList.appendChild(btn);
+        });
+      }
+
+      function renderActiveMiniHeader() {
+        if (!state.activeSlug && !state.hlsIsDemo) {
+          els.activeStreamMiniHeader.classList.add('hidden');
+          els.btnOpenKick.href = 'https://kick.com';
+          return;
+        }
+
+        els.activeStreamMiniHeader.classList.remove('hidden');
+
+        if (state.hlsIsDemo) {
+          els.miniAvatar.src = svgAvatarUri('HD');
+          els.miniName.textContent = 'Demo HLS Test Yayını';
+          els.miniTitle.textContent = 'Çoklu çözünürlük test akışı';
+          els.miniLivePill.classList.remove('hidden');
+          els.miniViewersBox.classList.add('hidden');
+          els.btnOpenKick.href = 'https://kick.com';
+          return;
+        }
+
+        const m = ensureMeta(state.activeSlug);
+        els.miniAvatar.src = m.avatar || svgAvatarUri(m.slug);
+        els.miniAvatar.onerror = function () {
+          this.onerror = null;
+          this.src = svgAvatarUri(m.slug);
+        };
+        els.miniName.textContent = m.displayName || m.slug;
+        els.miniTitle.textContent = m.title || (m.category ? m.category : 'Kick Oynatıcı');
+        els.btnOpenKick.href = `https://kick.com/${encodeURIComponent(m.slug)}`;
+
+        if (m.isLive) {
+          els.miniLivePill.classList.remove('hidden');
+          els.miniViewersBox.classList.remove('hidden');
+          els.miniViewersText.textContent = formatCompactTR(m.viewers);
+        } else {
+          els.miniLivePill.classList.add('hidden');
+          els.miniViewersBox.classList.add('hidden');
+        }
+      }
+
+      function renderApiStatus() {
+        els.apiDot.className = 'api-dot';
+        if (state.apiStatus === 'direct') {
+          els.apiDot.classList.add('ok');
+          els.apiLabel.textContent = 'API Aktif';
+          els.settingsProxyStatus.textContent = 'Doğrudan Aktif';
+        } else if (state.apiStatus === 'proxy') {
+          els.apiDot.classList.add('ok');
+          els.apiLabel.textContent = state.settings.customWorkerUrl ? 'Worker Aktif' : 'Proxy Aktif';
+          els.settingsProxyStatus.textContent = state.settings.customWorkerUrl ? 'Özel Worker' : 'Genel Proxy';
+        } else if (state.apiStatus === 'blocked') {
+          els.apiDot.classList.add('warn');
+          els.apiLabel.textContent = 'Worker Önerilir';
+          els.settingsProxyStatus.textContent = 'CORS Kısıtlı';
+        } else {
+          els.apiLabel.textContent = 'Kontrol...';
+        }
+      }
+
+      function getSortedChannels(q) {
+        const query = (q || '').trim().toLowerCase();
+        const all = state.channels
+          .map(ensureMeta)
+          .filter((m) => !query || m.slug.includes(query) || (m.displayName || '').toLowerCase().includes(query) || (m.category || '').toLowerCase().includes(query));
+        return {
+          live: all.filter((m) => m.isLive).sort((a, b) => b.viewers - a.viewers),
+          offline: all.filter((m) => !m.isLive),
+        };
+      }
+
+      function renderEmptyQuickChips() {
+        els.emptyQuickChips.innerHTML = '';
+        const { live } = getSortedChannels('');
+        let picks = [];
+        if (state.recents.length > 0) {
+          els.emptyRecentLabel.textContent = 'Son İzlenenler';
+          picks = state.recents.map(ensureMeta);
+        } else if (live.length > 0) {
+          els.emptyRecentLabel.textContent = `Şu An Canlı (${live.length})`;
+          picks = live.slice(0, 6);
+        } else {
+          els.emptyRecentLabel.textContent = 'Hızlı Başlat';
+          picks = state.channels.slice(0, 6).map(ensureMeta);
+        }
+
+        picks.forEach((m) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'quick-chip';
+          btn.innerHTML = `
+            <span class="chip-dot ${m.isLive ? 'live' : ''}"></span>
+            <span>${escHtml(m.displayName || m.slug)}</span>
+            ${m.isLive ? `<span class="txt-muted" style="font-size:10px;">${escHtml(formatCompactTR(m.viewers))}</span>` : ''}
+          `;
+          btn.addEventListener('click', () => openChannel(m.slug));
+          els.emptyQuickChips.appendChild(btn);
+        });
+      }
+
+      function createChannelRow(m, isLive) {
+        const active = state.activeSlug === m.slug;
+        const row = document.createElement('div');
+        row.className = 'channel-row' + (active ? ' is-active' : '');
+        row.addEventListener('click', () => openChannel(m.slug));
+
+        const fallback = svgAvatarUri(m.slug);
+        const av = m.avatar || fallback;
+
+        row.innerHTML = `
+          <div class="avatar-wrap">
+            <img src="${escHtml(av)}" alt="" loading="lazy" class="avatar-img ${isLive ? 'live-ring' : 'offline-dim'}" />
+            ${isLive ? '<span class="avatar-live-dot"></span>' : ''}
+          </div>
+          <div class="channel-info">
+            <div class="channel-name">${escHtml(m.displayName || m.slug)}</div>
+            <div class="channel-sub">${isLive ? escHtml(m.category || 'Canlı Yayın') : 'Çevrim dışı'}</div>
+          </div>
+          <div class="channel-right">
+            ${isLive ? `<span class="viewer-count">${escHtml(formatCompactTR(m.viewers))}</span>` : ''}
+            <button type="button" data-del="${escHtml(m.slug)}" aria-label="Kanalı sil" class="del-ch-btn">×</button>
+          </div>
+        `;
+
+        const imgEl = row.querySelector('img');
+        imgEl.onerror = function () {
+          this.onerror = null;
+          this.src = fallback;
+        };
+
+        row.querySelector('[data-del]').addEventListener('click', (e) => {
+          e.stopPropagation();
+          state.channels = state.channels.filter((s) => s !== m.slug);
+          saveChannels();
+          renderChannelLists();
+          if (!state.activeSlug) renderEmptyQuickChips();
+          showToast(`${m.displayName || m.slug} listeden silindi.`);
+        });
+
+        return row;
+      }
+
+      function renderChannelLists() {
+        const totalLive = state.channels.filter((s) => ensureMeta(s).isLive).length;
+        els.channelsLiveBadge.textContent = `${totalLive} canlı`;
+        els.channelsTotalBadge.textContent = `${state.channels.length} kanal`;
+
+        const { live, offline } = getSortedChannels(state.searchQuery);
+        els.listLive.innerHTML = '';
+        els.listOffline.innerHTML = '';
+
+        els.sectionLive.classList.toggle('hidden', live.length === 0);
+        els.liveSubcount.textContent = live.length ? String(live.length) : '';
+        live.forEach((m) => els.listLive.appendChild(createChannelRow(m, true)));
+
+        els.sectionOffline.classList.toggle('hidden', offline.length === 0);
+        els.offlineSubcount.textContent = offline.length ? String(offline.length) : '';
+        offline.forEach((m) => els.listOffline.appendChild(createChannelRow(m, false)));
+
+        const emptySearch = live.length === 0 && offline.length === 0 && state.searchQuery.trim().length > 0;
+        els.searchEmptyBox.classList.toggle('hidden', !emptySearch);
+        if (emptySearch) {
+          const slug = parseSlug(state.searchQuery) || state.searchQuery;
+          els.btnSearchQuickAdd.textContent = `+ "${slug}" ekle ve izle`;
+        }
+      }
+
+      function renderSettingsUI() {
+        const cap = detectHlsCapability();
+        els.iosHlsCapBadge.textContent = cap.label;
+        els.settingMaxQuality.value = state.settings.preferredQuality || 'auto';
+        els.settingBufferProfile.value = state.settings.bufferProfile || 'balanced';
+        els.settingOledToggle.checked = Boolean(state.settings.oledBlack);
+        els.settingPublicProxy.checked = Boolean(state.settings.usePublicProxy);
+        els.settingWorkerUrl.value = state.settings.customWorkerUrl || '';
+      }
+
+      // -------------------- OLAY DİNLEYİCİLERİ --------------------
+
+      els.btnEngineEmbed.addEventListener('click', () => switchEngine('embed'));
+      els.btnEngineHls.addEventListener('click', () => switchEngine('hls'));
+      els.btnQualitySheet.addEventListener('click', () => {
+        renderQualitySheet();
+        openSheet(els.qualitySheetOverlay);
+      });
+      els.btnPip.addEventListener('click', triggerPictureInPicture);
+      els.btnReload.addEventListener('click', reloadStream);
+      els.btnStats.addEventListener('click', toggleStatsOverlay);
+      els.btnCloseStream.addEventListener('click', closeStream);
+
+      els.emptyDemoHlsBtn.addEventListener('click', startDemoHls);
+      els.emptyOpenAddBtn.addEventListener('click', () => {
+        openSheet(els.addSheetOverlay);
+        setTimeout(() => els.addChannelSheetInput.focus(), 180);
+      });
+      els.hlsFbDemoBtn.addEventListener('click', startDemoHls);
+      els.hlsFbEmbedBtn.addEventListener('click', () => switchEngine('embed'));
+      els.hlsFbSettingsBtn.addEventListener('click', () => switchTab('settings'));
+
+      els.hlsVideo.addEventListener('click', () => {
+        if (state.controlsVisible) {
+          state.controlsVisible = false;
+          els.hlsTouchControls.classList.add('controls-hidden');
+        } else {
+          revealTouchControls();
+        }
+      });
+      els.hlsPlayBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (els.hlsVideo.paused) els.hlsVideo.play().catch(() => {});
+        else els.hlsVideo.pause();
+        revealTouchControls();
+      });
+      els.hlsMuteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        els.hlsVideo.muted = !els.hlsVideo.muted;
+        syncHlsAudioUI();
+        revealTouchControls();
+      });
+      els.hlsLiveBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        try {
+          if (state.hlsInstance && typeof state.hlsInstance.liveSyncPosition === 'number' && state.hlsInstance.liveSyncPosition > 0) {
+            els.hlsVideo.currentTime = state.hlsInstance.liveSyncPosition;
+          } else if (els.hlsVideo.buffered.length > 0) {
+            els.hlsVideo.currentTime = Math.max(0, els.hlsVideo.buffered.end(els.hlsVideo.buffered.length - 1) - 1);
+          }
+          els.hlsVideo.play().catch(() => {});
+          showToast('Canlı uca atlandı.');
+        } catch (err) {}
+      });
+      els.hlsAirplayBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        try { els.hlsVideo.webkitShowPlaybackTargetPicker(); } catch (err) {}
+      });
+      els.hlsFsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        triggerFullscreen();
+      });
+      els.hlsVideo.addEventListener('play', syncHlsPlayUI);
+      els.hlsVideo.addEventListener('pause', syncHlsPlayUI);
+      els.hlsVideo.addEventListener('volumechange', syncHlsAudioUI);
+
+      els.navTabChannels.addEventListener('click', () => switchTab('channels'));
+      els.navTabChat.addEventListener('click', () => switchTab('chat'));
+      els.navTabSettings.addEventListener('click', () => switchTab('settings'));
+
+      els.searchChannelInput.addEventListener('input', (e) => {
+        state.searchQuery = e.target.value;
+        renderChannelLists();
+      });
+      els.btnRefreshChannels.addEventListener('click', () => {
+        refreshAllChannels();
+        showToast('Canlı durumlar yenileniyor...');
+      });
+      els.channelsApiStatusPill.addEventListener('click', () => switchTab('settings'));
+      els.btnOpenAddSheet.addEventListener('click', () => {
+        openSheet(els.addSheetOverlay);
+        setTimeout(() => els.addChannelSheetInput.focus(), 180);
+      });
+      els.btnSearchQuickAdd.addEventListener('click', () => {
+        const q = els.searchChannelInput.value;
+        els.searchChannelInput.value = '';
+        state.searchQuery = '';
+        openChannel(q);
+      });
+
+      els.btnChatEnable.addEventListener('click', enableChat);
+      els.btnChatDisable.addEventListener('click', () => {
+        disableChat();
+        showToast('Sohbet kapatıldı (RAM serbest).');
+      });
+      const openChatExternal = () => {
+        if (!state.activeSlug) {
+          showToast('Önce bir kanal açın.', true);
+          return;
+        }
+        window.open(`https://kick.com/popout/${encodeURIComponent(state.activeSlug)}/chat`, '_blank', 'noopener');
+      };
+      els.btnChatPopout.addEventListener('click', openChatExternal);
+      els.btnChatExternal.addEventListener('click', openChatExternal);
+
+      els.landscapeDrawerFab.addEventListener('click', () => toggleLandscapeDrawer());
+      els.lsCloseDrawerBtn.addEventListener('click', () => toggleLandscapeDrawer(false));
+      els.lsTabChat.addEventListener('click', () => {
+        state.landscapeDrawerTab = 'chat';
+        renderLandscapeDrawer();
+      });
+      els.lsTabChannels.addEventListener('click', () => {
+        state.landscapeDrawerTab = 'channels';
+        renderLandscapeDrawer();
+      });
+      els.lsQualityBtn.addEventListener('click', () => {
+        renderQualitySheet();
+        openSheet(els.qualitySheetOverlay);
+      });
+
+      els.btnCloseQualitySheet.addEventListener('click', () => closeSheet(els.qualitySheetOverlay));
+      els.qualitySheetOverlay.addEventListener('click', (e) => {
+        if (e.target === els.qualitySheetOverlay) closeSheet(els.qualitySheetOverlay);
+      });
+      els.sheetSwitchToHls.addEventListener('click', () => {
+        switchEngine('hls');
+        renderQualitySheet();
+      });
+      els.sheetEmbedDemoBtn.addEventListener('click', startDemoHls);
+
+      document.querySelectorAll('.sheet-buf-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const prof = btn.getAttribute('data-buf');
+          state.settings.bufferProfile = prof;
+          saveSettings();
+          els.settingBufferProfile.value = prof;
+          renderQualitySheet();
+          if (state.engine === 'hls' && state.hlsMasterUrl) {
+            loadHlsUrl(state.hlsMasterUrl, { isDemo: state.hlsIsDemo });
+            showToast(`Tampon: ${BUFFER_PROFILES[prof].label}`);
+          }
+        });
+      });
+
+      els.btnCloseAddSheet.addEventListener('click', () => closeSheet(els.addSheetOverlay));
+      els.addSheetOverlay.addEventListener('click', (e) => {
+        if (e.target === els.addSheetOverlay) closeSheet(els.addSheetOverlay);
+      });
+      els.addChannelSheetForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const val = els.addChannelSheetInput.value;
+        const slug = parseSlug(val);
+        if (!slug) {
+          showToast('Geçerli bir Kick kullanıcı adı girin.', true);
+          return;
+        }
+        els.addChannelSheetInput.value = '';
+        closeSheet(els.addSheetOverlay);
+        openChannel(slug);
+      });
+
+      els.manualM3u8Form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const url = (els.manualM3u8Input.value || '').trim();
+        if (!url) {
+          showToast('Geçerli bir .m3u8 linki yapıştırın.', true);
+          return;
+        }
+        loadHlsUrl(url, { isDemo: !state.activeSlug });
+        showToast('HLS akışı yükleniyor...');
+      });
+      els.settingsDemoHlsBtn.addEventListener('click', startDemoHls);
+
+      els.settingMaxQuality.addEventListener('change', (e) => {
+        state.settings.preferredQuality = e.target.value;
+        saveSettings();
+        if (state.engine === 'hls' && state.hlsLevels.length > 0) {
+          applyHlsQuality(pickPreferredLevel(state.hlsLevels, state.settings.preferredQuality));
+        } else {
+          showToast('Varsayılan kalite kaydedildi.');
+        }
+      });
+
+      els.settingBufferProfile.addEventListener('change', (e) => {
+        state.settings.bufferProfile = e.target.value;
+        saveSettings();
+        if (state.engine === 'hls' && state.hlsMasterUrl) {
+          loadHlsUrl(state.hlsMasterUrl, { isDemo: state.hlsIsDemo });
+        }
+        showToast('Tampon profili güncellendi.');
+      });
+
+      els.settingOledToggle.addEventListener('change', (e) => {
+        state.settings.oledBlack = e.target.checked;
+        saveSettings();
+        applyTheme();
+      });
+
+      els.settingPublicProxy.addEventListener('change', (e) => {
+        state.settings.usePublicProxy = e.target.checked;
+        saveSettings();
+        refreshAllChannels();
+      });
+
+      els.btnSaveWorker.addEventListener('click', () => {
+        state.settings.customWorkerUrl = (els.settingWorkerUrl.value || '').trim();
+        saveSettings();
+        refreshAllChannels();
+        showToast('Worker URL kaydedildi.');
+      });
+
+      els.btnCopyWorker.addEventListener('click', () => copyViaExecCommand(els.workerCodeBox.textContent));
+
+      els.btnExportJson.addEventListener('click', () => {
+        const blob = new Blob([JSON.stringify({ channels: state.channels }, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'kick-lite-ios-kanallar.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('JSON indirildi.');
+      });
+
+      els.btnImportJson.addEventListener('click', () => els.inputImportFile.click());
+      els.inputImportFile.addEventListener('change', (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(String(reader.result || ''));
+            const arr = Array.isArray(parsed) ? parsed : Array.isArray(parsed.channels) ? parsed.channels : [];
+            const cleaned = [...new Set(arr.map(parseSlug).filter(Boolean))];
+            if (!cleaned.length) {
+              showToast('Geçerli kanal bulunamadı.', true);
+              return;
+            }
+            state.channels = cleaned;
+            cleaned.forEach(ensureMeta);
+            saveChannels();
+            renderChannelLists();
+            refreshAllChannels();
+            showToast(`${cleaned.length} kanal içe aktarıldı.`);
+          } catch (err) {
+            showToast('Geçersiz JSON dosyası.', true);
+          }
+        };
+        reader.readAsText(f);
+        e.target.value = '';
+      });
+
+      els.btnResetChannels.addEventListener('click', () => {
+        openConfirm('Kanalları Sıfırla', 'Kanal listen varsayılan yayıncılara döndürülecek. Onaylıyor musun?', () => {
+          state.channels = [...DEFAULT_CHANNELS];
+          state.channels.forEach(ensureMeta);
+          saveChannels();
+          renderChannelLists();
+          refreshAllChannels();
+          showToast('Liste varsayılanlara sıfırlandı.');
+        });
+      });
+
+      els.confirmCancel.addEventListener('click', closeConfirm);
+      els.confirmOk.addEventListener('click', () => {
+        const fn = state.confirmCb;
+        closeConfirm();
+        if (typeof fn === 'function') fn();
+      });
+      els.confirmModal.addEventListener('click', (e) => {
+        if (e.target === els.confirmModal) closeConfirm();
+      });
+
+      window.addEventListener('hashchange', () => {
+        const slug = parseSlug(window.location.hash.replace(/^#/, ''));
+        if (slug && slug !== state.activeSlug) openChannel(slug, false);
+      });
+
+      window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+          if (state.chatEnabled) mountChatInActiveHost();
+        }, 250);
+      });
+
+      function init() {
+        loadStorage();
+        applyTheme();
+        updateEngineButtonsUI();
+        updateQualityBadgeUI();
+        renderChannelLists();
+        renderEmptyQuickChips();
+        renderSettingsUI();
+
+        let initSlug = '';
+        if (window.location.hash && window.location.hash.length > 1) {
+          initSlug = parseSlug(window.location.hash.slice(1));
+        } else {
+          try {
+            const p = new URLSearchParams(window.location.search);
+            initSlug = parseSlug(p.get('channel') || p.get('c') || '');
+          } catch (e) {}
+        }
+
+        if (initSlug) openChannel(initSlug, false);
+        refreshAllChannels();
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
